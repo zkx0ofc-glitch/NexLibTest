@@ -1,18 +1,20 @@
 -- ============================================================================
--- NEXUS UI LIBRARY - 100% PURE BLACK & NEON PINK (NO WHITE ARTIFACTS)
--- Architecture: Object-Oriented (Metatables) & Roblox Luau UI Framework
+-- NEXUS UI LIBRARY - HYPER-FLUID CYBER EDITION
+-- Features: Exaggerated Spring Animations, Tactile Micro-Interactions,
+--           Native Toast Notifications & Persistent Profile/Config System.
 -- ============================================================================
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 
 -- ----------------------------------------------------------------------------
--- 1. UTILITIES & THEME CONFIGURATION (PRETO ABSOLUTO & ROSA NEON)
+-- 1. UTILITIES & ADVANCED ANIMATION HELPERS (BOUNCE & SPRING EASING)
 -- ----------------------------------------------------------------------------
 local function GetGuiContainer()
     local success, container = pcall(function()
@@ -40,29 +42,79 @@ local function PlayTween(instance, info, props)
     return tween
 end
 
+-- ----------------------------------------------------------------------------
+-- 2. FILE SYSTEM / PROFILE PERSISTENCE ENGINE
+-- ----------------------------------------------------------------------------
+local FileSystem = {}
+local FOLDER_NAME = "NexusUI_Configs"
+
+local HasFileSystem = pcall(function()
+    return writefile and readfile and isfile and makefolder
+end)
+
+function FileSystem.Init()
+    if HasFileSystem then
+        pcall(function()
+            if not isfolder(FOLDER_NAME) then
+                makefolder(FOLDER_NAME)
+            end
+        end)
+    end
+end
+
+function FileSystem.Save(profileName, data)
+    local jsonStr = HttpService:JSONEncode(data)
+    if HasFileSystem then
+        local success = pcall(function()
+            writefile(FOLDER_NAME .. "/" .. profileName .. ".json", jsonStr)
+        end)
+        return success
+    end
+    return false
+end
+
+function FileSystem.Load(profileName)
+    if HasFileSystem then
+        local path = FOLDER_NAME .. "/" .. profileName .. ".json"
+        local success, result = pcall(function()
+            if isfile(path) then
+                return HttpService:JSONDecode(readfile(path))
+            end
+            return nil
+        end)
+        if success and result then return result end
+    end
+    return nil
+end
+
+FileSystem.Init()
+
+-- ----------------------------------------------------------------------------
+-- 3. THEME CONFIGURATION (DEEP BLACK & NEON PINK)
+-- ----------------------------------------------------------------------------
 local NexusUI = {}
 NexusUI.__index = NexusUI
 
--- PALETA DE CORES: 100% PRETO, GRAFITE & ROSA NEON (SEM BRANCO)
 NexusUI.DefaultTheme = {
-    BackgroundPrimary   = { r = 10, g = 10, b = 14, a = 1.0 },   -- Preto Absoluto Sólido
-    BackgroundSecondary = { r = 14, g = 14, b = 20, a = 1.0 },   -- Grafite Escuro
-    BackgroundWidget    = { r = 18, g = 18, b = 25, a = 1.0 },   -- Fundo dos Itens
-    BackgroundHover     = { r = 26, g = 20, b = 32, a = 1.0 },   -- Hover Rosa Sutil
+    BackgroundPrimary   = { r = 10, g = 10, b = 14, a = 1.0 },
+    BackgroundSecondary = { r = 13, g = 13, b = 18, a = 1.0 },
+    BackgroundWidget    = { r = 17, g = 17, b = 24, a = 1.0 },
+    BackgroundHover     = { r = 28, g = 20, b = 34, a = 1.0 },
     
-    Outline             = { r = 255, g = 42, b = 133, a = 1.0 }, -- Rosa Neon (#FF2A85)
-    OutlineSubtle       = { r = 45, g = 25, b = 40, a = 1.0 },   -- Borda Secundária
+    Outline             = { r = 255, g = 42, b = 133, a = 1.0 },
+    OutlineGlow         = { r = 255, g = 80, b = 170, a = 1.0 },
+    OutlineSubtle       = { r = 40, g = 22, b = 36, a = 1.0 },
     
-    Accent              = { r = 255, g = 42, b = 133, a = 1.0 }, -- Rosa Neon Ativo
-    AccentHover         = { r = 255, g = 75, b = 155, a = 1.0 },
+    Accent              = { r = 255, g = 42, b = 133, a = 1.0 },
+    AccentActive        = { r = 255, g = 85, b = 165, a = 1.0 },
     
-    Text                = { r = 245, g = 240, b = 248, a = 1.0 }, -- Cinza Rosado Claro (Sem Branco Puro)
-    TextDim             = { r = 140, g = 135, b = 150, a = 1.0 }, -- Muted Text
-    LockedOverlay       = { r = 8, g = 8, b = 12, a = 0.90 }     -- Overlay Escuro
+    Text                = { r = 245, g = 242, b = 250, a = 1.0 },
+    TextDim             = { r = 135, g = 130, b = 148, a = 1.0 },
+    LockedOverlay       = { r = 8, g = 8, b = 12, a = 0.92 }
 }
 
 -- ----------------------------------------------------------------------------
--- 2. DRAGGABLE CONTROLLER (Arrastar a Janela pelo Topo)
+-- 4. DRAGGABLE CONTROLLER COM INÉRCIA SUAVE
 -- ----------------------------------------------------------------------------
 local function MakeDraggable(dragHandle, mainFrame)
     local dragging, dragInput, dragStart, startPos
@@ -90,7 +142,7 @@ local function MakeDraggable(dragHandle, mainFrame)
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
-            PlayTween(mainFrame, TweenInfo.new(0.05, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            PlayTween(mainFrame, TweenInfo.new(0.06, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
                 Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
             })
         end
@@ -98,7 +150,7 @@ local function MakeDraggable(dragHandle, mainFrame)
 end
 
 -- ----------------------------------------------------------------------------
--- 3. BASE COMPONENT (Tags, Lock Overlay & Favoritos)
+-- 5. BASE COMPONENT (Tags, Lock & Feedback Tátil)
 -- ----------------------------------------------------------------------------
 local Component = {}
 Component.__index = Component
@@ -112,6 +164,12 @@ function Component.New(instance, config, hubRef)
     self.IsLocked = config.locked or false
     self.LockReason = config.lockReason or "Bloqueado"
     self.IsFavorite = false
+
+    -- Scale para Animação de Squash & Stretch (Compressão ao Clicar)
+    local uiScale = Instance.new("UIScale")
+    uiScale.Scale = 1.0
+    uiScale.Parent = self.Instance
+    self.Scale = uiScale
 
     -- Container de Tags Dinâmicas
     self.TagContainer = Instance.new("Frame")
@@ -131,7 +189,7 @@ function Component.New(instance, config, hubRef)
     tagLayout.Padding = UDim.new(0, 6)
     tagLayout.Parent = self.TagContainer
 
-    -- Camada de Bloqueio (Lock Overlay Rosa Escuro)
+    -- Camada de Bloqueio (Lock Overlay com Brilho Neon)
     self.LockOverlay = Instance.new("TextButton")
     self.LockOverlay.Name = "LockOverlay"
     self.LockOverlay.AutoButtonColor = false
@@ -151,12 +209,12 @@ function Component.New(instance, config, hubRef)
     lockCorner.Parent = self.LockOverlay
 
     local lockStroke = Instance.new("UIStroke")
-    lockStroke.Color = Color3.fromRGB(160, 25, 65)
+    lockStroke.Color = Color3.fromRGB(180, 25, 75)
     lockStroke.Thickness = 1
     lockStroke.Parent = self.LockOverlay
     self.LockOverlay.Parent = self.Instance
 
-    -- Botão de Favorito (Sem piscar branco)
+    -- Botão de Favorito
     if self.Config.canFavorite then
         local starBtn = Instance.new("TextButton")
         starBtn.Name = "FavoriteStar"
@@ -172,7 +230,13 @@ function Component.New(instance, config, hubRef)
         starBtn.ZIndex = 10
         starBtn.Parent = self.Instance
 
+        local starScale = Instance.new("UIScale")
+        starScale.Parent = starBtn
+
         starBtn.MouseButton1Click:Connect(function()
+            PlayTween(starScale, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.4 })
+            task.wait(0.1)
+            PlayTween(starScale, TweenInfo.new(0.2, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Scale = 1.0 })
             self:SetFavorite(not self.IsFavorite)
         end)
         self.StarButton = starBtn
@@ -208,7 +272,12 @@ function Component:UpdateTag(tagId, text, colorData)
         stroke.Thickness = 1
         stroke.Parent = badge
 
+        local badgeScale = Instance.new("UIScale")
+        badgeScale.Scale = 0.7
+        badgeScale.Parent = badge
         badge.Parent = self.TagContainer
+
+        PlayTween(badgeScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.0 })
         self.Tags[tagId] = badge
     else
         tag.Text = "  " .. tostring(text) .. "  "
@@ -229,7 +298,7 @@ function Component:SetFavorite(status)
     if not self.Config.canFavorite then return end
     self.IsFavorite = status
     if self.StarButton then
-        PlayTween(self.StarButton, TweenInfo.new(0.2), {
+        PlayTween(self.StarButton, TweenInfo.new(0.25, Enum.EasingStyle.Back), {
             TextColor3 = self.IsFavorite and Color3.fromRGB(255, 42, 133) or Color3.fromRGB(65, 60, 75)
         })
     end
@@ -239,7 +308,7 @@ function Component:SetFavorite(status)
 end
 
 -- ----------------------------------------------------------------------------
--- 4. HUB PRINCIPAL (100% PRETO + CONTORNO ROSA NEON)
+-- 6. HUB BUILDER (COM ANIMAÇÃO DE POP-IN E SISTEMA DE NOTIFICAÇÕES)
 -- ----------------------------------------------------------------------------
 function NexusUI.CreateHub(config)
     config = config or {}
@@ -253,11 +322,14 @@ function NexusUI.CreateHub(config)
         isOpen = true,
         tabs = {},
         activeTab = nil,
-        favorites = {}
+        favorites = {},
+        registeredOptions = {},
+        currentProfile = "Default",
+        autoSave = true
     }
     setmetatable(hub, { __index = NexusUI })
 
-    -- 1. ScreenGui
+    -- ScreenGui
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "NexusUI_Framework"
     screenGui.ResetOnSpawn = false
@@ -265,13 +337,30 @@ function NexusUI.CreateHub(config)
     screenGui.Parent = GetGuiContainer()
     hub.ScreenGui = screenGui
 
-    -- 2. Janela Principal (Preto 100% Sólido)
+    -- Container de Notificações Toast Flutuantes (Canto Inferior Direito)
+    local notifContainer = Instance.new("Frame")
+    notifContainer.Name = "Notifications"
+    notifContainer.Size = UDim2.new(0, 300, 1, -20)
+    notifContainer.Position = UDim2.new(1, -310, 0, 10)
+    notifContainer.BackgroundTransparency = 1
+    notifContainer.BorderSizePixel = 0
+    notifContainer.ZIndex = 50
+    notifContainer.Parent = screenGui
+
+    local notifLayout = Instance.new("UIListLayout")
+    notifLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+    notifLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    notifLayout.Padding = UDim.new(0, 8)
+    notifLayout.Parent = notifContainer
+    hub.NotificationContainer = notifContainer
+
+    -- Janela Principal (Preto 100% Sólido com Escala de Pop-In)
     local main = Instance.new("Frame")
     main.Name = "MainHub"
     main.Size = UDim2.new(0, bounds.width, 0, bounds.height)
     main.Position = UDim2.new(0, bounds.x, 0, bounds.y)
-    main.BackgroundColor3 = Color3.fromRGB(10, 10, 14) -- 100% PRETO
-    main.BackgroundTransparency = 0                     -- ANTI-VAZAMENTO
+    main.BackgroundColor3 = Color3.fromRGB(10, 10, 14)
+    main.BackgroundTransparency = 0
     main.BorderSizePixel = 0
     main.ClipsDescendants = true
     main.Parent = screenGui
@@ -281,14 +370,20 @@ function NexusUI.CreateHub(config)
     mainCorner.CornerRadius = UDim.new(0, 10)
     mainCorner.Parent = main
 
-    -- CONTORNO ROSA NEON
     local pinkStroke = Instance.new("UIStroke")
     pinkStroke.Name = "NeonOutline"
     pinkStroke.Color = ToColor3(theme.Outline)
     pinkStroke.Thickness = 1.8
     pinkStroke.Parent = main
+    hub.MainStroke = pinkStroke
 
-    -- 3. TopBar (Cabeçalho)
+    -- Mola Elástica de Abertura (UIScale)
+    local mainScale = Instance.new("UIScale")
+    mainScale.Scale = 1.0
+    mainScale.Parent = main
+    hub.MainScale = mainScale
+
+    -- TopBar
     local topBar = Instance.new("Frame")
     topBar.Name = "TopBar"
     topBar.Size = UDim2.new(1, 0, 0, 44)
@@ -352,9 +447,17 @@ function NexusUI.CreateHub(config)
     closeStroke.Thickness = 1
     closeStroke.Parent = closeBtn
 
-    closeBtn.MouseButton1Click:Connect(function() hub:Toggle() end)
+    local closeScale = Instance.new("UIScale")
+    closeScale.Parent = closeBtn
 
-    -- 4. Sidebar (Menu Lateral)
+    closeBtn.MouseButton1Click:Connect(function()
+        PlayTween(closeScale, TweenInfo.new(0.08), { Scale = 0.85 })
+        task.wait(0.08)
+        PlayTween(closeScale, TweenInfo.new(0.2, Enum.EasingStyle.Back), { Scale = 1.0 })
+        hub:Toggle()
+    end)
+
+    -- Sidebar
     local sidebar = Instance.new("Frame")
     sidebar.Name = "Sidebar"
     sidebar.Size = UDim2.new(0, 190, 1, -44)
@@ -388,7 +491,7 @@ function NexusUI.CreateHub(config)
     tabLayout.Parent = tabList
     hub.TabList = tabList
 
-    -- 5. Content Container
+    -- Content Area
     local contentContainer = Instance.new("Frame")
     contentContainer.Name = "ContentContainer"
     contentContainer.Size = UDim2.new(1, -202, 1, -54)
@@ -400,6 +503,7 @@ function NexusUI.CreateHub(config)
 
     hub:_InitNativeTabs()
 
+    -- Tecla de Atalho Global
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode.Name == hub.toggleKey then
@@ -410,15 +514,160 @@ function NexusUI.CreateHub(config)
     return hub
 end
 
+-- ----------------------------------------------------------------------------
+-- 7. ANIMAÇÕES DE JANELA (POP-IN ELÁSTICO) & SISTEMA DE TOAST NOTIFICATIONS
+-- ----------------------------------------------------------------------------
 function NexusUI:Toggle()
     self.isOpen = not self.isOpen
-    self.MainFrame.Visible = self.isOpen
+    if self.isOpen then
+        self.MainFrame.Visible = true
+        self.MainScale.Scale = 0.8
+        PlayTween(self.MainScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Scale = 1.0
+        })
+        PlayTween(self.MainStroke, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Color = ToColor3(self.theme.Outline)
+        })
+    else
+        local tw = PlayTween(self.MainScale, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+            Scale = 0.8
+        })
+        tw.Completed:Connect(function()
+            if not self.isOpen then self.MainFrame.Visible = false end
+        end)
+    end
 end
 
 function NexusUI:Update(dt) end
 
+-- Sistema de Notificação Toast (Slide-in e Barra de Progresso)
+function NexusUI:Notify(config)
+    config = config or {}
+    local title = config.title or "NEXUS SISTEMA"
+    local content = config.content or "Operação realizada com sucesso."
+    local duration = config.duration or 3.5
+
+    local notif = Instance.new("Frame")
+    notif.Name = "Toast"
+    notif.Size = UDim2.new(1, 0, 0, 56)
+    notif.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
+    notif.BorderSizePixel = 0
+    notif.ClipsDescendants = true
+    notif.Position = UDim2.new(1, 100, 0, 0) -- Fora da tela para animar entrada
+    notif.Parent = self.NotificationContainer
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = notif
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = ToColor3(self.theme.Outline)
+    stroke.Thickness = 1.2
+    stroke.Parent = notif
+
+    local tLbl = Instance.new("TextLabel")
+    tLbl.Size = UDim2.new(1, -20, 0, 20)
+    tLbl.Position = UDim2.new(0, 12, 0, 6)
+    tLbl.BackgroundTransparency = 1
+    tLbl.Text = "◈ " .. string.upper(title)
+    tLbl.Font = Enum.Font.GothamBold
+    tLbl.TextSize = 11
+    tLbl.TextColor3 = ToColor3(self.theme.Accent)
+    tLbl.TextXAlignment = Enum.TextXAlignment.Left
+    tLbl.Parent = notif
+
+    local cLbl = Instance.new("TextLabel")
+    cLbl.Size = UDim2.new(1, -20, 0, 20)
+    cLbl.Position = UDim2.new(0, 12, 0, 24)
+    cLbl.BackgroundTransparency = 1
+    cLbl.Text = content
+    cLbl.Font = Enum.Font.Gotham
+    cLbl.TextSize = 11
+    cLbl.TextColor3 = ToColor3(self.theme.Text)
+    cLbl.TextXAlignment = Enum.TextXAlignment.Left
+    cLbl.Parent = notif
+
+    local progressBar = Instance.new("Frame")
+    progressBar.Size = UDim2.new(1, 0, 0, 2)
+    progressBar.Position = UDim2.new(0, 0, 1, -2)
+    progressBar.BackgroundColor3 = ToColor3(self.theme.Accent)
+    progressBar.BorderSizePixel = 0
+    progressBar.Parent = notif
+
+    -- Animação de Entrada Elástica
+    PlayTween(notif, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Position = UDim2.new(0, 0, 0, 0)
+    })
+
+    -- Barra de Duração
+    PlayTween(progressBar, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+        Size = UDim2.new(0, 0, 0, 2)
+    })
+
+    task.delay(duration, function()
+        local outTw = PlayTween(notif, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+            Position = UDim2.new(1, 100, 0, 0)
+        })
+        outTw.Completed:Connect(function()
+            notif:Destroy()
+        end)
+    end)
+end
+
 -- ----------------------------------------------------------------------------
--- 5. CRIAÇÃO DE ABAS & SUB-ABAS
+-- 8. GERENCIADOR DE CONFIGURAÇÃO & SALVAMENTO DE PERFIL
+-- ----------------------------------------------------------------------------
+function NexusUI:SaveConfig(profileName)
+    profileName = profileName or self.currentProfile
+    local dataToSave = {}
+
+    for optId, opt in pairs(self.registeredOptions) do
+        dataToSave[optId] = opt.GetValue()
+    end
+
+    local saved = FileSystem.Save(profileName, dataToSave)
+    if saved then
+        self:Notify({
+            title = "Perfil Salvo",
+            content = "Configuração '" .. profileName .. "' salva no disco com sucesso!",
+            duration = 3
+        })
+    else
+        self:Notify({
+            title = "Aviso de Perfil",
+            content = "Configuração '" .. profileName .. "' registrada na sessão.",
+            duration = 3
+        })
+    end
+end
+
+function NexusUI:LoadConfig(profileName)
+    profileName = profileName or self.currentProfile
+    local loadedData = FileSystem.Load(profileName)
+
+    if loadedData then
+        for optId, val in pairs(loadedData) do
+            local opt = self.registeredOptions[optId]
+            if opt and opt.SetValue then
+                opt.SetValue(val)
+            end
+        end
+        self:Notify({
+            title = "Perfil Carregado",
+            content = "As opções de '" .. profileName .. "' foram aplicadas!",
+            duration = 3
+        })
+    else
+        self:Notify({
+            title = "Erro ao Carregar",
+            content = "Perfil '" .. profileName .. "' não encontrado.",
+            duration = 3
+        })
+    end
+end
+
+-- ----------------------------------------------------------------------------
+-- 9. CRIAÇÃO DE ABAS & SUB-ABAS COM TRANSIÇÕES SUAVES
 -- ----------------------------------------------------------------------------
 function NexusUI:CreateTab(name, iconAsset)
     local hub = self
@@ -494,15 +743,21 @@ function NexusUI:CreateTab(name, iconAsset)
         for _, t in pairs(hub.tabs) do
             t.page.Visible = false
             t.indicator.Visible = false
-            t.button.BackgroundColor3 = Color3.fromRGB(13, 13, 18)
-            t.button.TextColor3 = ToColor3(hub.theme.TextDim)
-            t.indicator.Size = UDim2.new(0, 3, 0, 0)
+            PlayTween(t.button, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(13, 13, 18),
+                TextColor3 = ToColor3(hub.theme.TextDim)
+            })
+            PlayTween(t.indicator, TweenInfo.new(0.2), { Size = UDim2.new(0, 3, 0, 0) })
         end
         tabPage.Visible = true
         activeIndicator.Visible = true
-        PlayTween(activeIndicator, TweenInfo.new(0.2), { Size = UDim2.new(0, 3, 0.65, 0) })
-        tabBtn.BackgroundColor3 = Color3.fromRGB(24, 16, 26)
-        tabBtn.TextColor3 = ToColor3(hub.theme.Accent)
+        PlayTween(activeIndicator, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 3, 0.7, 0)
+        })
+        PlayTween(tabBtn, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(24, 16, 26),
+            TextColor3 = ToColor3(hub.theme.Accent)
+        })
         hub.activeTab = tabObj
     end
 
@@ -561,14 +816,18 @@ function NexusUI:CreateTab(name, iconAsset)
         local function ActivateSub()
             for _, s in pairs(tabObj.subTabs) do
                 s.page.Visible = false
-                s.button.TextColor3 = ToColor3(hub.theme.TextDim)
-                s.button.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
-                s.stroke.Color = Color3.fromRGB(36, 26, 40)
+                PlayTween(s.button, TweenInfo.new(0.2), {
+                    TextColor3 = ToColor3(hub.theme.TextDim),
+                    BackgroundColor3 = Color3.fromRGB(16, 16, 22)
+                })
+                PlayTween(s.stroke, TweenInfo.new(0.2), { Color = Color3.fromRGB(36, 26, 40) })
             end
             subPage.Visible = true
-            subBtn.TextColor3 = ToColor3(hub.theme.Accent)
-            subBtn.BackgroundColor3 = Color3.fromRGB(32, 16, 28)
-            sStroke.Color = ToColor3(hub.theme.Accent)
+            PlayTween(subBtn, TweenInfo.new(0.25, Enum.EasingStyle.Back), {
+                TextColor3 = Color3.fromRGB(255, 255, 255),
+                BackgroundColor3 = Color3.fromRGB(32, 16, 28)
+            })
+            PlayTween(sStroke, TweenInfo.new(0.25), { Color = ToColor3(hub.theme.Accent) })
             tabObj.activeSubTab = subObj
         end
 
@@ -601,7 +860,7 @@ function NexusUI:CreateTab(name, iconAsset)
 end
 
 -- ----------------------------------------------------------------------------
--- 6. CONSTRUTOR DE SEÇÕES & WIDGETS
+-- 10. CONSTRUTOR DE SEÇÕES & WIDGETS COM FEEDBACK VISUAL EXAGERADO
 -- ----------------------------------------------------------------------------
 function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
     local hub = self
@@ -671,7 +930,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
 
     local secApi = {}
 
-    -- [BUTTON]
+    -- [BUTTON COM FEEDBACK ELÁSTICO DE SQUASH]
     function secApi:AddButton(btnCfg)
         local btn = Instance.new("TextButton")
         btn.AutoButtonColor = false
@@ -698,27 +957,30 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
 
         btn.MouseEnter:Connect(function()
             if not comp.IsLocked then
-                btn.BackgroundColor3 = Color3.fromRGB(26, 20, 32)
-                stroke.Color = ToColor3(hub.theme.Accent)
+                PlayTween(btn, TweenInfo.new(0.2), { BackgroundColor3 = Color3.fromRGB(26, 20, 32) })
+                PlayTween(stroke, TweenInfo.new(0.2), { Color = ToColor3(hub.theme.Accent), Thickness = 1.4 })
             end
         end)
         btn.MouseLeave:Connect(function()
             if not comp.IsLocked then
-                btn.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
-                stroke.Color = Color3.fromRGB(34, 25, 38)
+                PlayTween(btn, TweenInfo.new(0.2), { BackgroundColor3 = Color3.fromRGB(18, 18, 25) })
+                PlayTween(stroke, TweenInfo.new(0.2), { Color = Color3.fromRGB(34, 25, 38), Thickness = 1.0 })
             end
         end)
         btn.MouseButton1Click:Connect(function()
             if comp.IsLocked then return end
-            btn.BackgroundColor3 = ToColor3(hub.theme.Accent)
+            -- Compressão elástica táctil
+            PlayTween(comp.Scale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.95 })
+            PlayTween(btn, TweenInfo.new(0.08), { BackgroundColor3 = ToColor3(hub.theme.Accent) })
             task.wait(0.08)
-            btn.BackgroundColor3 = Color3.fromRGB(26, 20, 32)
+            PlayTween(comp.Scale, TweenInfo.new(0.25, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Scale = 1.0 })
+            PlayTween(btn, TweenInfo.new(0.15), { BackgroundColor3 = Color3.fromRGB(26, 20, 32) })
             if btnCfg.callback then btnCfg.callback(comp) end
         end)
         return comp
     end
 
-    -- [TOGGLE]
+    -- [TOGGLE COM FÍSICA DE MOLA E ALONGAMENTO]
     function secApi:AddToggle(tCfg)
         local tBtn = Instance.new("TextButton")
         tBtn.AutoButtonColor = false
@@ -744,8 +1006,8 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         -- Trilho
         local switch = Instance.new("Frame")
         switch.BorderSizePixel = 0
-        switch.Size = UDim2.new(0, 40, 0, 20)
-        switch.Position = UDim2.new(1, -50, 0.5, -10)
+        switch.Size = UDim2.new(0, 42, 0, 20)
+        switch.Position = UDim2.new(1, -52, 0.5, -10)
         switch.BackgroundColor3 = tCfg.default and ToColor3(hub.theme.Accent) or Color3.fromRGB(28, 20, 32)
         switch.Parent = tBtn
 
@@ -758,7 +1020,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         swStroke.Thickness = 1
         swStroke.Parent = switch
 
-        -- Círculo Deslizante (Rosa Pastel Suave quando ligado, Grafite quando desligado)
+        -- Knob que Estica (Morph de cápsula enquanto desliza)
         local dot = Instance.new("Frame")
         dot.BorderSizePixel = 0
         dot.Size = UDim2.new(0, 14, 0, 14)
@@ -773,25 +1035,52 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         local comp = Component.New(tBtn, tCfg, hub)
         local state = tCfg.default or false
 
+        local function SetToggleState(newState, skipCallback)
+            state = newState
+            local targetPos = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+            local targetBg = state and ToColor3(hub.theme.Accent) or Color3.fromRGB(28, 20, 32)
+            local targetDotColor = state and Color3.fromRGB(255, 235, 245) or Color3.fromRGB(150, 130, 160)
+
+            -- Animação Elástica: Estica o círculo na transição e depois o solta na mola
+            PlayTween(dot, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, 20, 0, 14)
+            })
+            PlayTween(switch, TweenInfo.new(0.25, Enum.EasingStyle.Quad), { BackgroundColor3 = targetBg })
+            PlayTween(swStroke, TweenInfo.new(0.25), { Color = state and ToColor3(hub.theme.Accent) or Color3.fromRGB(48, 30, 52) })
+
+            task.wait(0.08)
+            PlayTween(dot, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                Position = targetPos,
+                Size = UDim2.new(0, 14, 0, 14),
+                BackgroundColor3 = targetDotColor
+            })
+
+            if not skipCallback and tCfg.callback then
+                tCfg.callback(state)
+            end
+
+            -- Auto-Save ao alterar opção
+            if hub.autoSave then
+                hub:SaveConfig(hub.currentProfile)
+            end
+        end
+
         tBtn.MouseButton1Click:Connect(function()
             if comp.IsLocked then return end
-            state = not state
-            PlayTween(switch, TweenInfo.new(0.2), {
-                BackgroundColor3 = state and ToColor3(hub.theme.Accent) or Color3.fromRGB(28, 20, 32)
-            })
-            PlayTween(swStroke, TweenInfo.new(0.2), {
-                Color = state and ToColor3(hub.theme.Accent) or Color3.fromRGB(48, 30, 52)
-            })
-            PlayTween(dot, TweenInfo.new(0.2), {
-                Position = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7),
-                BackgroundColor3 = state and Color3.fromRGB(255, 235, 245) or Color3.fromRGB(150, 130, 160)
-            })
-            if tCfg.callback then tCfg.callback(state) end
+            SetToggleState(not state)
         end)
+
+        -- Registro no Gerenciador de Configurações
+        local optId = tCfg.id or tCfg.name
+        hub.registeredOptions[optId] = {
+            GetValue = function() return state end,
+            SetValue = function(val) SetToggleState(val, false) end
+        }
+
         return comp
     end
 
-    -- [DROPDOWN]
+    -- [DROPDOWN COM ROTACIONAMENTO SUAVE DE SETA E ACORDEÃO]
     function secApi:AddDropdown(ddCfg)
         local dFrame = Instance.new("Frame")
         dFrame.BorderSizePixel = 0
@@ -814,12 +1103,22 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         headerBtn.BorderSizePixel = 0
         headerBtn.Size = UDim2.new(1, 0, 0, 36)
         headerBtn.BackgroundTransparency = 1
-        headerBtn.Text = "    " .. ddCfg.name .. "  ▾"
+        headerBtn.Text = "    " .. ddCfg.name
         headerBtn.TextColor3 = ToColor3(hub.theme.Text)
         headerBtn.Font = Enum.Font.GothamSemibold
         headerBtn.TextSize = 12
         headerBtn.TextXAlignment = Enum.TextXAlignment.Left
         headerBtn.Parent = dFrame
+
+        local arrow = Instance.new("TextLabel")
+        arrow.Size = UDim2.new(0, 24, 0, 24)
+        arrow.Position = UDim2.new(1, -30, 0.5, -12)
+        arrow.BackgroundTransparency = 1
+        arrow.Text = "▾"
+        arrow.TextColor3 = ToColor3(hub.theme.Accent)
+        arrow.Font = Enum.Font.GothamBold
+        arrow.TextSize = 14
+        arrow.Parent = headerBtn
 
         local optList = Instance.new("Frame")
         optList.BorderSizePixel = 0
@@ -838,14 +1137,21 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         local isOpen = false
         local selected = ddCfg.multiSelect and {} or (ddCfg.default or ddCfg.options[1])
 
-        headerBtn.MouseButton1Click:Connect(function()
+        local function ToggleDropdown()
             if comp.IsLocked then return end
             isOpen = not isOpen
             optList.Visible = isOpen
-            headerBtn.Text = "    " .. ddCfg.name .. (isOpen and "  ▴" or "  ▾")
-            dStroke.Color = isOpen and ToColor3(hub.theme.Accent) or Color3.fromRGB(34, 25, 38)
-        end)
+            PlayTween(arrow, TweenInfo.new(0.25, Enum.EasingStyle.Back), {
+                Rotation = isOpen and 180 or 0
+            })
+            PlayTween(dStroke, TweenInfo.new(0.2), {
+                Color = isOpen and ToColor3(hub.theme.Accent) or Color3.fromRGB(34, 25, 38)
+            })
+        end
 
+        headerBtn.MouseButton1Click:Connect(ToggleDropdown)
+
+        local optButtons = {}
         for _, opt in ipairs(ddCfg.options or {}) do
             local optBtn = Instance.new("TextButton")
             optBtn.AutoButtonColor = false
@@ -872,23 +1178,48 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
             optBtn.MouseButton1Click:Connect(function()
                 if ddCfg.multiSelect then
                     selected[opt] = not selected[opt]
-                    optBtn.TextColor3 = selected[opt] and ToColor3(hub.theme.Accent) or ToColor3(hub.theme.TextDim)
+                    PlayTween(optBtn, TweenInfo.new(0.2), {
+                        TextColor3 = selected[opt] and ToColor3(hub.theme.Accent) or ToColor3(hub.theme.TextDim)
+                    })
                     oStroke.Color = selected[opt] and ToColor3(hub.theme.Accent) or Color3.fromRGB(28, 20, 32)
                     if ddCfg.callback then ddCfg.callback(selected) end
                 else
                     selected = opt
-                    isOpen = false
-                    optList.Visible = false
-                    headerBtn.Text = "    " .. ddCfg.name .. "  [" .. opt .. "]  ▾"
-                    dStroke.Color = Color3.fromRGB(34, 25, 38)
+                    ToggleDropdown()
+                    headerBtn.Text = "    " .. ddCfg.name .. "  [" .. opt .. "]"
                     if ddCfg.callback then ddCfg.callback(selected) end
                 end
+                if hub.autoSave then hub:SaveConfig(hub.currentProfile) end
             end)
+
+            optButtons[opt] = { Button = optBtn, Stroke = oStroke }
         end
+
+        -- Config Setter
+        local optId = ddCfg.id or ddCfg.name
+        hub.registeredOptions[optId] = {
+            GetValue = function() return selected end,
+            SetValue = function(val)
+                selected = val
+                if not ddCfg.multiSelect then
+                    headerBtn.Text = "    " .. ddCfg.name .. "  [" .. tostring(val) .. "]"
+                    if ddCfg.callback then ddCfg.callback(selected) end
+                else
+                    for name, active in pairs(selected) do
+                        if optButtons[name] then
+                            optButtons[name].Button.TextColor3 = active and ToColor3(hub.theme.Accent) or ToColor3(hub.theme.TextDim)
+                            optButtons[name].Stroke.Color = active and ToColor3(hub.theme.Accent) or Color3.fromRGB(28, 20, 32)
+                        end
+                    end
+                    if ddCfg.callback then ddCfg.callback(selected) end
+                end
+            end
+        }
+
         return comp
     end
 
-    -- [KEYBIND]
+    -- [KEYBIND COM EFEITO DE PULSO LUMINOSO]
     function secApi:AddKeybind(kbCfg)
         local kBtn = Instance.new("TextButton")
         kBtn.AutoButtonColor = false
@@ -911,7 +1242,6 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         stroke.Thickness = 1
         stroke.Parent = kBtn
 
-        -- Caixa da Tecla
         local keyBox = Instance.new("TextLabel")
         keyBox.BorderSizePixel = 0
         keyBox.Size = UDim2.new(0, 60, 0, 22)
@@ -934,24 +1264,38 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
 
         local comp = Component.New(kBtn, kbCfg, hub)
         local listening = false
+        local currentBoundKey = kbCfg.default or "None"
 
         kBtn.MouseButton1Click:Connect(function()
             if comp.IsLocked then return end
             listening = true
             keyBox.Text = "..."
-            kStroke.Color = Color3.fromRGB(255, 100, 180)
+            PlayTween(kStroke, TweenInfo.new(0.2), { Color = Color3.fromRGB(255, 120, 190) })
 
             local conn
             conn = UserInputService.InputBegan:Connect(function(inp)
                 if inp.UserInputType == Enum.UserInputType.Keyboard then
                     conn:Disconnect()
                     listening = false
-                    keyBox.Text = inp.KeyCode.Name
-                    kStroke.Color = ToColor3(hub.theme.Accent)
-                    if kbCfg.callback then kbCfg.callback(inp.KeyCode.Name) end
+                    currentBoundKey = inp.KeyCode.Name
+                    keyBox.Text = currentBoundKey
+                    PlayTween(kStroke, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Color = ToColor3(hub.theme.Accent) })
+                    if kbCfg.callback then kbCfg.callback(currentBoundKey) end
+                    if hub.autoSave then hub:SaveConfig(hub.currentProfile) end
                 end
             end)
         end)
+
+        local optId = kbCfg.id or kbCfg.name
+        hub.registeredOptions[optId] = {
+            GetValue = function() return currentBoundKey end,
+            SetValue = function(val)
+                currentBoundKey = val
+                keyBox.Text = val
+                if kbCfg.callback then kbCfg.callback(val) end
+            end
+        }
+
         return comp
     end
 
@@ -959,7 +1303,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
 end
 
 -- ----------------------------------------------------------------------------
--- 7. ABAS NATIVAS (Favoritos & Configurações)
+-- 11. ABAS NATIVAS (GERENCIADOR DE PERFIS E CONFIGURAÇÕES)
 -- ----------------------------------------------------------------------------
 function NexusUI:RegisterFavorite(comp, status)
     if status then
@@ -974,13 +1318,58 @@ function NexusUI:_InitNativeTabs()
     favTab:CreateSection("Acesso Rápido")
 
     local settingsTab = self:CreateTab("Configurações")
-    local cfgSec = settingsTab:CreateSection("Geral")
+    
+    -- Seção de Perfis Nativos
+    local profileSec = settingsTab:CreateSection("Gerenciador de Perfis")
+    
+    profileSec:AddDropdown({
+        name = "Perfil Ativo",
+        options = { "Default", "Legit", "Rage", "Personalizado" },
+        default = "Default",
+        callback = function(selected)
+            self.currentProfile = selected
+        end
+    })
 
+    profileSec:AddButton({
+        name = "💾 Salvar Configurações no Disco",
+        callback = function()
+            self:SaveConfig(self.currentProfile)
+        end
+    })
+
+    profileSec:AddButton({
+        name = "📂 Carregar Configurações Salvas",
+        callback = function()
+            self:LoadConfig(self.currentProfile)
+        end
+    })
+
+    profileSec:AddToggle({
+        name = "Salvar Automaticamente ao Mudar Opções",
+        default = true,
+        callback = function(state)
+            self.autoSave = state
+            self:Notify({
+                title = "Auto-Save",
+                content = state and "Salvamento automático ativado!" or "Salvamento automático desligado.",
+                duration = 2.5
+            })
+        end
+    })
+
+    -- Seção Geral do Hub
+    local cfgSec = settingsTab:CreateSection("Atalhos do Sistema")
     cfgSec:AddKeybind({
-        name = "Atalho do Menu",
+        name = "Atalho de Abertura do Hub",
         default = self.toggleKey,
         callback = function(newKey)
             self.toggleKey = newKey
+            self:Notify({
+                title = "Atalho Atualizado",
+                content = "Nova tecla do Hub: " .. newKey,
+                duration = 2.5
+            })
         end
     })
 end
