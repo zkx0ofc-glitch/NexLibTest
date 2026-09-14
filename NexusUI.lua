@@ -1,485 +1,813 @@
 -- ============================================================================
--- NEXUS UI LIBRARY - Core Architecture
--- Paradigm: Object-Oriented Programming (Metatables) & Event-Driven
+-- NEXUS UI LIBRARY (Luau / Roblox Edition)
+-- Architecture: OOP with Metatables, TweenService Animations & Reactive State
 -- ============================================================================
 
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+
+-- ----------------------------------------------------------------------------
+-- 1. UTILITIES & CONTAINER RESOLUTION
+-- ----------------------------------------------------------------------------
+local function GetGuiContainer()
+    local success, container = pcall(function()
+        if gethui then return gethui() end
+        return CoreGui
+    end)
+    if success and container then return container end
+    return LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local function ToColor3(colorData, default)
+    if typeof(colorData) == "Color3" then return colorData end
+    if type(colorData) == "table" then
+        local r = colorData.r or colorData[1] or 255
+        local g = colorData.g or colorData[2] or 255
+        local b = colorData.b or colorData[3] or 255
+        return Color3.fromRGB(r, g, b)
+    end
+    return default or Color3.fromRGB(255, 255, 255)
+end
+
+local function ToTransparency(colorData, default)
+    if type(colorData) == "table" and colorData.a ~= nil then
+        return 1 - math.clamp(colorData.a, 0, 1)
+    end
+    return default or 0
+end
+
+local function CreateTween(instance, info, properties)
+    local tween = TweenService:Create(instance, info, properties)
+    tween:Play()
+    return tween
+end
+
+-- ----------------------------------------------------------------------------
+-- 2. CORE LIBRARY OBJECT
+-- ----------------------------------------------------------------------------
 local NexusUI = {}
 NexusUI.__index = NexusUI
 
--- ----------------------------------------------------------------------------
--- 1. UTILITIES & FOUNDATION (OOP, Signals, Color & Math)
--- ----------------------------------------------------------------------------
-local function CreateClass(base)
-    local c = {}
-    c.__index = c
-    if base then
-        setmetatable(c, { __index = base })
-    end
-    function c:New(...)
-        local obj = setmetatable({}, c)
-        if obj.Init then
-            obj:Init(...)
-        end
-        return obj
-    end
-    return c
-end
-
--- Sistema de Eventos / Signals (Observer Pattern)
-local Signal = CreateClass()
-function Signal:Init()
-    self.listeners = {}
-end
-
-function Signal:Connect(fn)
-    table.insert(self.listeners, fn)
-    return {
-        Disconnect = function()
-            for i, l in ipairs(self.listeners) do
-                if l == fn then
-                    table.remove(self.listeners, i)
-                    break
-                end
-            end
-        end
-    }
-end
-
-function Signal:Fire(...)
-    for _, fn in ipairs(self.listeners) do
-        fn(...)
-    end
-end
-
--- Utilitário de Cores e Interpolação Linear (Tweening/Easing)
-local Color = {}
-function Color.RGBA(r, g, b, a)
-    return { r = r or 255, g = g or 255, b = b or 255, a = a or 1.0 }
-end
-
-local function Lerp(a, b, t)
-    return a + (b - a) * t
-end
-
--- ----------------------------------------------------------------------------
--- 2. THEME & VISUAL DEFINITIONS
--- ----------------------------------------------------------------------------
+-- Tema Padrão
 NexusUI.DefaultTheme = {
-    BackgroundPrimary   = Color.RGBA(18, 18, 22, 0.95),
-    BackgroundSecondary = Color.RGBA(25, 25, 32, 0.90),
-    Accent              = Color.RGBA(98, 71, 235, 1.0),
-    AccentHover         = Color.RGBA(115, 88, 255, 1.0),
-    Text                = Color.RGBA(240, 240, 245, 1.0),
-    TextDim             = Color.RGBA(140, 140, 155, 1.0),
-    Success             = Color.RGBA(46, 204, 113, 1.0),
-    Warning             = Color.RGBA(241, 196, 15, 1.0),
-    Danger              = Color.RGBA(231, 76, 60, 1.0),
-    LockedOverlay       = Color.RGBA(10, 10, 12, 0.75),
-    BlurEnabled         = true,
-    BackgroundGradient  = {
-        Enabled = true,
-        StartColor = Color.RGBA(30, 20, 50, 0.95),
-        EndColor   = Color.RGBA(15, 15, 20, 0.95)
-    }
+    BackgroundPrimary   = { r = 16, g = 18, b = 24, a = 0.98 },
+    BackgroundSecondary = { r = 22, g = 25, b = 34, a = 1.0 },
+    Accent              = { r = 0, g = 180, b = 255, a = 1.0 },
+    Text                = { r = 240, g = 240, b = 245, a = 1.0 },
+    TextDim             = { r = 130, g = 135, b = 150, a = 1.0 },
+    LockedOverlay       = { r = 10, g = 10, b = 15, a = 0.85 }
 }
 
 -- ----------------------------------------------------------------------------
--- 3. BASE COMPONENT (Herança para todos os Widgets)
+-- 3. DRAGGABLE CONTROLLER (Arrastar a Janela pelo Cabeçalho)
 -- ----------------------------------------------------------------------------
-local BaseComponent = CreateClass()
+local function MakeDraggable(dragHandle, mainFrame)
+    local dragging, dragInput, dragStart, startPos
 
-function BaseComponent:Init(config)
+    dragHandle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = mainFrame.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    dragHandle.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            CreateTween(mainFrame, TweenInfo.new(0.08, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            })
+        end
+    end)
+end
+
+-- ----------------------------------------------------------------------------
+-- 4. BASE COMPONENT CLASS (Tags Dinâmicas, Bloqueio & Favoritos)
+-- ----------------------------------------------------------------------------
+local Component = {}
+Component.__index = Component
+
+function Component.New(instance, config, hubRef)
+    local self = setmetatable({}, Component)
+    self.Instance = instance
+    self.Hub = hubRef
+    self.Config = config or {}
+    self.Tags = {}
+    self.IsLocked = config.locked or false
+    self.LockReason = config.lockReason or "Bloqueado"
+    self.IsFavorite = false
+
+    -- Container de Tags Dinâmicas
+    self.TagContainer = Instance.new("Frame")
+    self.TagContainer.Name = "TagContainer"
+    self.TagContainer.BackgroundTransparency = 1
+    self.TagContainer.Size = UDim2.new(0, 0, 1, 0)
+    self.TagContainer.Position = UDim2.new(1, -10, 0, 0)
+    self.TagContainer.AnchorPoint = Vector2.new(1, 0)
+    self.TagContainer.Parent = self.Instance
+
+    local tagLayout = Instance.new("UIListLayout")
+    tagLayout.FillDirection = Enum.FillDirection.Horizontal
+    tagLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    tagLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    tagLayout.Padding = UDim.new(0, 6)
+    tagLayout.Parent = self.TagContainer
+
+    -- Camada de Bloqueio (Lock Overlay)
+    self.LockOverlay = Instance.new("TextButton")
+    self.LockOverlay.Name = "LockOverlay"
+    self.LockOverlay.Size = UDim2.new(1, 0, 1, 0)
+    self.LockOverlay.BackgroundColor3 = ToColor3(NexusUI.DefaultTheme.LockedOverlay)
+    self.LockOverlay.BackgroundTransparency = 0.25
+    self.LockOverlay.Text = "🔒 " .. self.LockReason
+    self.LockOverlay.TextColor3 = Color3.fromRGB(255, 100, 100)
+    self.LockOverlay.Font = Enum.Font.GothamBold
+    self.LockOverlay.TextSize = 12
+    self.LockOverlay.Visible = self.IsLocked
+    self.LockOverlay.ZIndex = 15
+    self.LockOverlay.AutoButtonColor = false
+
+    local overlayCorner = Instance.new("UICorner")
+    overlayCorner.CornerRadius = UDim.new(0, 6)
+    overlayCorner.Parent = self.LockOverlay
+    self.LockOverlay.Parent = self.Instance
+
+    -- Botão de Favorito (Estrela)
+    if self.Config.canFavorite then
+        local starBtn = Instance.new("TextButton")
+        starBtn.Name = "FavoriteStar"
+        starBtn.Size = UDim2.new(0, 24, 0, 24)
+        starBtn.Position = UDim2.new(0, 6, 0.5, -12)
+        starBtn.BackgroundTransparency = 1
+        starBtn.Text = "★"
+        starBtn.TextColor3 = Color3.fromRGB(80, 85, 100)
+        starBtn.Font = Enum.Font.GothamBold
+        starBtn.TextSize = 14
+        starBtn.ZIndex = 10
+        starBtn.Parent = self.Instance
+
+        starBtn.MouseButton1Click:Connect(function()
+            self:SetFavorite(not self.IsFavorite)
+        end)
+        self.StarButton = starBtn
+    end
+
+    return self
+end
+
+function Component:UpdateTag(tagId, text, colorData)
+    local tag = self.Tags[tagId]
+    local color = ToColor3(colorData, Color3.fromRGB(0, 180, 255))
+
+    if not tag then
+        local badge = Instance.new("TextLabel")
+        badge.Name = "Tag_" .. tostring(tagId)
+        badge.AutomaticSize = Enum.AutomaticSize.X
+        badge.Size = UDim2.new(0, 0, 0, 18)
+        badge.BackgroundColor3 = color
+        badge.BackgroundTransparency = 0.2
+        badge.TextColor3 = Color3.fromRGB(255, 255, 255)
+        badge.Font = Enum.Font.GothamBold
+        badge.TextSize = 10
+        badge.Text = " " .. tostring(text) .. " "
+        badge.ZIndex = 8
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 4)
+        corner.Parent = badge
+        badge.Parent = self.TagContainer
+
+        self.Tags[tagId] = badge
+    else
+        tag.Text = " " .. tostring(text) .. " "
+        tag.BackgroundColor3 = color
+    end
+end
+
+function Component:RemoveTag(tagId)
+    if self.Tags[tagId] then
+        self.Tags[tagId]:Destroy()
+        self.Tags[tagId] = nil
+    end
+end
+
+function Component:SetLocked(state, reason)
+    self.IsLocked = state
+    if reason then self.LockReason = reason end
+    self.LockOverlay.Text = "🔒 " .. self.LockReason
+    self.LockOverlay.Visible = self.IsLocked
+end
+
+function Component:SetFavorite(status)
+    if not self.Config.canFavorite then return end
+    self.IsFavorite = status
+    if self.StarButton then
+        self.StarButton.TextColor3 = self.IsFavorite and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(80, 85, 100)
+    end
+    if self.Hub and self.Hub.RegisterFavorite then
+        self.Hub:RegisterFavorite(self, self.IsFavorite)
+    end
+end
+
+-- ----------------------------------------------------------------------------
+-- 5. HUB BUILDER & METATABLE
+-- ----------------------------------------------------------------------------
+function NexusUI.CreateHub(config)
     config = config or {}
-    self.id = config.id or tostring(math.random(100000, 999999))
-    self.name = config.name or "Component"
-    self.bounds = config.bounds or { x = 0, y = 0, width = 100, height = 30 }
-    self.visible = config.visible ~= nil and config.visible or true
-    self.parent = nil
-    self.children = {}
-    
-    -- Estados Interativos
-    self.isHovered = false
-    self.isPressed = false
-    self.canFavorite = config.canFavorite or false
-    self.isFavorite = false
-    
-    -- Sistema de Tags Dinâmicas (Textos reativos, Badges, Status)
-    self.dynamicTags = {} -- Ex: { tagId = { text = "ONLINE", color = Color.RGBA(...) } }
-    
-    -- Sistema de Bloqueio Condicional (Lock/Permissions)
-    self.locked = config.locked or false
-    self.lockReason = config.lockReason or "Sem Permissão"
-    
-    -- Eventos Natuais
-    self.OnStateChanged = Signal:New()
-end
+    local theme = config.theme or NexusUI.DefaultTheme
+    local toggleKeyName = config.toggleKey or "Y"
+    local bounds = config.bounds or { x = 200, y = 150, width = 850, height = 550 }
 
-function BaseComponent:AddChild(child)
-    child.parent = self
-    table.insert(self.children, child)
-end
-
-function BaseComponent:SetLocked(locked, reason)
-    self.locked = locked
-    if reason then self.lockReason = reason end
-    self.OnStateChanged:Fire("lock", self.locked, self.lockReason)
-end
-
-function BaseComponent:SetFavorite(status)
-    if not self.canFavorite then return end
-    self.isFavorite = status
-    self.OnStateChanged:Fire("favorite", self.isFavorite)
-    
-    -- Notifica o Hub raiz para atualizar a lista de favoritos
-    local root = self:GetRootHub()
-    if root and root.OnFavoriteToggled then
-        root:OnFavoriteToggled(self, self.isFavorite)
-    end
-end
-
-function BaseComponent:UpdateTag(tagId, text, color)
-    self.dynamicTags[tagId] = {
-        text = text,
-        color = color or NexusUI.DefaultTheme.Accent
+    local hub = {
+        title = config.title or "NEXUS INTERACTIVE DASHBOARD",
+        theme = theme,
+        toggleKey = toggleKeyName,
+        isOpen = true,
+        tabs = {},
+        activeTab = nil,
+        favorites = {}
     }
-    self.OnStateChanged:Fire("tag_updated", tagId, text)
-end
+    setmetatable(hub, { __index = NexusUI })
 
-function BaseComponent:RemoveTag(tagId)
-    self.dynamicTags[tagId] = nil
-    self.OnStateChanged:Fire("tag_removed", tagId)
-end
+    -- 1. ScreenGui Container
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "NexusUI_Framework"
+    screenGui.ResetOnSpawn = false
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.Parent = GetGuiContainer()
+    hub.ScreenGui = screenGui
 
-function BaseComponent:GetRootHub()
-    local curr = self
-    while curr.parent do
-        curr = curr.parent
+    -- 2. Janela Principal (Main Frame)
+    local main = Instance.new("Frame")
+    main.Name = "MainHub"
+    main.Size = UDim2.new(0, bounds.width, 0, bounds.height)
+    main.Position = UDim2.new(0, bounds.x, 0, bounds.y)
+    main.BackgroundColor3 = ToColor3(theme.BackgroundPrimary)
+    main.BackgroundTransparency = ToTransparency(theme.BackgroundPrimary)
+    main.BorderSizePixel = 0
+    main.ClipsDescendants = true
+    main.Parent = screenGui
+    hub.MainFrame = main
+
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 10)
+    mainCorner.Parent = main
+
+    local mainStroke = Instance.new("UIStroke")
+    mainStroke.Color = Color3.fromRGB(45, 50, 65)
+    mainStroke.Thickness = 1.2
+    mainStroke.Parent = main
+
+    -- Gradiente de Fundo
+    if theme.BackgroundGradient and theme.BackgroundGradient.Enabled then
+        local gradient = Instance.new("UIGradient")
+        gradient.Color = ColorSequence.new(ToColor3(theme.BackgroundGradient.StartColor), ToColor3(theme.BackgroundGradient.EndColor))
+        gradient.Rotation = 45
+        gradient.Parent = main
     end
-    return curr
+
+    -- 3. TopBar (Cabeçalho com Draggable)
+    local topBar = Instance.new("Frame")
+    topBar.Name = "TopBar"
+    topBar.Size = UDim2.new(1, 0, 0, 48)
+    topBar.BackgroundTransparency = 1
+    topBar.Parent = main
+    MakeDraggable(topBar, main)
+
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -60, 1, 0)
+    titleLabel.Position = UDim2.new(0, 20, 0, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = hub.title
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextSize = 14
+    titleLabel.TextColor3 = ToColor3(theme.Text)
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Parent = topBar
+
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 32, 0, 32)
+    closeBtn.Position = UDim2.new(1, -40, 0.5, -16)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(230, 60, 60)
+    closeBtn.Text = "✕"
+    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 12
+    closeBtn.Parent = topBar
+
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 6)
+    closeCorner.Parent = closeBtn
+    closeBtn.MouseButton1Click:Connect(function() hub:Toggle() end)
+
+    -- 4. Sidebar (Navegação Lateral de Abas)
+    local sidebar = Instance.new("Frame")
+    sidebar.Name = "Sidebar"
+    sidebar.Size = UDim2.new(0, 190, 1, -48)
+    sidebar.Position = UDim2.new(0, 0, 0, 48)
+    sidebar.BackgroundColor3 = ToColor3(theme.BackgroundSecondary)
+    sidebar.BorderSizePixel = 0
+    sidebar.Parent = main
+
+    local tabList = Instance.new("ScrollingFrame")
+    tabList.Name = "TabList"
+    tabList.Size = UDim2.new(1, -16, 1, -20)
+    tabList.Position = UDim2.new(0, 8, 0, 10)
+    tabList.BackgroundTransparency = 1
+    tabList.ScrollBarThickness = 2
+    tabList.Parent = sidebar
+
+    local tabLayout = Instance.new("UIListLayout")
+    tabLayout.Padding = UDim.new(0, 6)
+    tabLayout.Parent = tabList
+    hub.TabList = tabList
+
+    -- 5. Content Area (Páginas das Abas)
+    local contentContainer = Instance.new("Frame")
+    contentContainer.Name = "ContentContainer"
+    contentContainer.Size = UDim2.new(1, -200, 1, -58)
+    contentContainer.Position = UDim2.new(0, 195, 0, 52)
+    contentContainer.BackgroundTransparency = 1
+    contentContainer.Parent = main
+    hub.ContentContainer = contentContainer
+
+    -- Inicializa Abas Nativas (Favoritos & Configurações)
+    hub:_InitNativeTabs()
+
+    -- Listener de Atalho Global (Toggle Key)
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.KeyCode.Name == hub.toggleKey then
+            hub:Toggle()
+        end
+    end)
+
+    return hub
 end
 
 -- ----------------------------------------------------------------------------
--- 4. WIDGETS INTERATIVOS
+-- 6. HUB METHODS (Tabs, Sub-Tabs & Sections)
 -- ----------------------------------------------------------------------------
-
--- [BUTTON WIDGET]
-local Button = CreateClass(BaseComponent)
-function Button:Init(config)
-    BaseComponent.Init(self, config)
-    self.callback = config.callback or function() end
-    self.iconAsset = config.iconAsset or nil
-end
-
-function Button:Click()
-    if self.locked then return end
-    self.callback(self)
-    self.OnStateChanged:Fire("clicked")
-end
-
--- [TOGGLE WIDGET]
-local Toggle = CreateClass(BaseComponent)
-function Toggle:Init(config)
-    BaseComponent.Init(self, config)
-    self.state = config.default or false
-    self.callback = config.callback or function(state) end
-    self.animPosition = self.state and 1.0 or 0.0 -- Usado para transição suave
-end
-
-function Toggle:SetState(newState)
-    if self.locked then return end
-    self.state = newState
-    self.callback(self.state)
-    self.OnStateChanged:Fire("toggled", self.state)
-end
-
-function Toggle:Toggle()
-    self:SetState(not self.state)
-end
-
--- [SELECTOR / DROPDOWN WIDGET]
-local Dropdown = CreateClass(BaseComponent)
-function Dropdown:Init(config)
-    BaseComponent.Init(self, config)
-    self.options = config.options or {}
-    self.multiSelect = config.multiSelect or false
-    self.selected = self.multiSelect and {} or config.default or self.options[1]
-    self.isOpen = false
-    self.callback = config.callback or function(selected) end
-end
-
-function Dropdown:Select(option)
-    if self.locked then return end
-    
-    if self.multiSelect then
-        self.selected[option] = not self.selected[option]
-        self.callback(self.selected)
-    else
-        self.selected = option
-        self.isOpen = false
-        self.callback(self.selected)
-    end
-    self.OnStateChanged:Fire("selected", self.selected)
-end
-
-function Dropdown:ToggleDropdown()
-    if self.locked then return end
+function NexusUI:Toggle()
     self.isOpen = not self.isOpen
+    local targetAlpha = self.isOpen and 0 or 1
+    local targetPos = self.isOpen and self.MainFrame.Position or self.MainFrame.Position + UDim2.new(0, 0, 0, 20)
+
+    CreateTween(self.MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        BackgroundTransparency = self.isOpen and ToTransparency(self.theme.BackgroundPrimary) or 1
+    })
+    self.MainFrame.Visible = self.isOpen
 end
 
--- [KEYBIND WIDGET]
-local Keybind = CreateClass(BaseComponent)
-function Keybind:Init(config)
-    BaseComponent.Init(self, config)
-    self.currentKey = config.default or "None"
-    self.isListening = false
-    self.callback = config.callback or function(newKey) end
+function NexusUI:Update(dt)
+    -- Método de compatibilidade para ticks de execução
 end
 
-function Keybind:StartListening()
-    if self.locked then return end
-    self.isListening = true
-    self.OnStateChanged:Fire("listening", true)
-end
+function NexusUI:CreateTab(name, iconAsset)
+    local hub = self
 
-function Keybind:AssignKey(key)
-    self.currentKey = key
-    self.isListening = false
-    self.callback(self.currentKey)
-    self.OnStateChanged:Fire("key_assigned", self.currentKey)
-end
+    -- Botão da Aba na Sidebar
+    local tabBtn = Instance.new("TextButton")
+    tabBtn.Name = "TabBtn_" .. name
+    tabBtn.Size = UDim2.new(1, 0, 0, 38)
+    tabBtn.BackgroundColor3 = Color3.fromRGB(28, 32, 44)
+    tabBtn.BackgroundTransparency = 1
+    tabBtn.Text = "     " .. name
+    tabBtn.TextColor3 = ToColor3(hub.theme.TextDim)
+    tabBtn.Font = Enum.Font.GothamSemibold
+    tabBtn.TextSize = 13
+    tabBtn.TextXAlignment = Enum.TextXAlignment.Left
+    tabBtn.Parent = hub.TabList
 
--- [GAME ASSET / IMAGE COMPONENT]
-local AssetImage = CreateClass(BaseComponent)
-function AssetImage:Init(config)
-    BaseComponent.Init(self, config)
-    self.assetPath = config.assetPath or ""
-    self.aspectRatio = config.aspectRatio or "fit"
-    self.roundedCorners = config.roundedCorners or 6
-end
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = tabBtn
 
--- ----------------------------------------------------------------------------
--- 5. CONTAINER STRUCTURE (Sections, Tabs, Sub-Tabs)
--- ----------------------------------------------------------------------------
-local Section = CreateClass(BaseComponent)
-function Section:Init(config)
-    BaseComponent.Init(self, config)
-    self.bannerAsset = config.bannerAsset or nil -- Imagem de capa/Game Asset
-end
+    -- Página de Conteúdo da Aba
+    local tabPage = Instance.new("Frame")
+    tabPage.Name = "Page_" .. name
+    tabPage.Size = UDim2.new(1, 0, 1, 0)
+    tabPage.BackgroundTransparency = 1
+    tabPage.Visible = false
+    tabPage.Parent = hub.ContentContainer
 
-function Section:AddButton(config)
-    local btn = Button:New(config)
-    self:AddChild(btn)
-    return btn
-end
+    -- Barra de Sub-Abas (Navegação Superior interna)
+    local subTabHeader = Instance.new("Frame")
+    subTabHeader.Name = "SubTabHeader"
+    subTabHeader.Size = UDim2.new(1, 0, 0, 32)
+    subTabHeader.BackgroundTransparency = 1
+    subTabHeader.Parent = tabPage
 
-function Section:AddToggle(config)
-    local toggle = Toggle:New(config)
-    self:AddChild(toggle)
-    return toggle
-end
+    local subTabLayout = Instance.new("UIListLayout")
+    subTabLayout.FillDirection = Enum.FillDirection.Horizontal
+    subTabLayout.Padding = UDim.new(0, 8)
+    subTabLayout.Parent = subTabHeader
 
-function Section:AddDropdown(config)
-    local dropdown = Dropdown:New(config)
-    self:AddChild(dropdown)
-    return dropdown
-end
+    -- Container para conteúdo das Sub-Abas
+    local subTabContainer = Instance.new("Frame")
+    subTabContainer.Name = "SubTabContainer"
+    subTabContainer.Size = UDim2.new(1, 0, 1, -40)
+    subTabContainer.Position = UDim2.new(0, 0, 0, 40)
+    subTabContainer.BackgroundTransparency = 1
+    subTabContainer.Parent = tabPage
 
-function Section:AddKeybind(config)
-    local keybind = Keybind:New(config)
-    self:AddChild(keybind)
-    return keybind
-end
+    local tabObj = {
+        name = name,
+        button = tabBtn,
+        page = tabPage,
+        subTabHeader = subTabHeader,
+        subTabContainer = subTabContainer,
+        subTabs = {},
+        activeSubTab = nil
+    }
 
-function Section:AddImage(config)
-    local img = AssetImage:New(config)
-    self:AddChild(img)
-    return img
-end
+    tabBtn.MouseButton1Click:Connect(function()
+        for _, t in pairs(hub.tabs) do
+            t.page.Visible = false
+            CreateTween(t.button, TweenInfo.new(0.2), { BackgroundTransparency = 1, TextColor3 = ToColor3(hub.theme.TextDim) })
+        end
+        tabPage.Visible = true
+        CreateTween(tabBtn, TweenInfo.new(0.2), { BackgroundTransparency = 0, BackgroundColor3 = ToColor3(hub.theme.Accent), TextColor3 = Color3.fromRGB(255, 255, 255) })
+        hub.activeTab = tabObj
+    end)
 
--- [SUB-TAB]
-local SubTab = CreateClass(BaseComponent)
-function SubTab:Init(config)
-    BaseComponent.Init(self, config)
-    self.sections = {}
-end
+    table.insert(hub.tabs, tabObj)
 
-function SubTab:CreateSection(title, bannerAsset)
-    local sec = Section:New({ name = title, bannerAsset = bannerAsset })
-    self:AddChild(sec)
-    table.insert(self.sections, sec)
-    return sec
-end
-
--- [TAB]
-local Tab = CreateClass(BaseComponent)
-function Tab:Init(config)
-    BaseComponent.Init(self, config)
-    self.iconAsset = config.iconAsset or nil
-    self.subTabs = {}
-    self.activeSubTab = nil
-end
-
-function Tab:CreateSubTab(name)
-    local sub = SubTab:New({ name = name })
-    self:AddChild(sub)
-    table.insert(self.subTabs, sub)
-    if not self.activeSubTab then
-        self.activeSubTab = sub
+    -- Define a primeira aba como ativa automaticamente
+    if #hub.tabs == 1 then
+        tabPage.Visible = true
+        tabBtn.BackgroundTransparency = 0
+        tabBtn.BackgroundColor3 = ToColor3(hub.theme.Accent)
+        tabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        hub.activeTab = tabObj
     end
-    return sub
-end
 
--- Caso queira criar uma seção direta sem sub-abas
-function Tab:CreateSection(title, bannerAsset)
-    if #self.subTabs == 0 then
-        self:CreateSubTab("Geral")
+    -- Criação de Sub-Abas
+    function tabObj:CreateSubTab(subName)
+        local subBtn = Instance.new("TextButton")
+        subBtn.Name = "SubBtn_" .. subName
+        subBtn.Size = UDim2.new(0, 110, 1, 0)
+        subBtn.BackgroundColor3 = Color3.fromRGB(25, 30, 42)
+        subBtn.Text = subName
+        subBtn.TextColor3 = ToColor3(hub.theme.TextDim)
+        subBtn.Font = Enum.Font.GothamSemibold
+        subBtn.TextSize = 12
+        subBtn.Parent = subTabHeader
+
+        local sCorner = Instance.new("UICorner")
+        sCorner.CornerRadius = UDim.new(0, 6)
+        sCorner.Parent = subBtn
+
+        local subPage = Instance.new("ScrollingFrame")
+        subPage.Name = "SubPage_" .. subName
+        subPage.Size = UDim2.new(1, 0, 1, 0)
+        subPage.BackgroundTransparency = 1
+        subPage.ScrollBarThickness = 3
+        subPage.Visible = false
+        subPage.Parent = subTabContainer
+
+        local subLayout = Instance.new("UIListLayout")
+        subLayout.Padding = UDim.new(0, 12)
+        subLayout.Parent = subPage
+
+        local subObj = { name = subName, page = subPage, button = subBtn }
+
+        subBtn.MouseButton1Click:Connect(function()
+            for _, s in pairs(tabObj.subTabs) do
+                s.page.Visible = false
+                s.button.TextColor3 = ToColor3(hub.theme.TextDim)
+            end
+            subPage.Visible = true
+            subBtn.TextColor3 = ToColor3(hub.theme.Accent)
+            tabObj.activeSubTab = subObj
+        end)
+
+        table.insert(tabObj.subTabs, subObj)
+
+        if #tabObj.subTabs == 1 then
+            subPage.Visible = true
+            subBtn.TextColor3 = ToColor3(hub.theme.Accent)
+            tabObj.activeSubTab = subObj
+        end
+
+        function subObj:CreateSection(secTitle, bannerAsset)
+            return hub:_BuildSection(subPage, secTitle, bannerAsset)
+        end
+
+        return subObj
     end
-    return self.subTabs[1]:CreateSection(title, bannerAsset)
-end
 
--- ----------------------------------------------------------------------------
--- 6. HUB CORE (Menu Principal & Sistemas Globais)
--- ----------------------------------------------------------------------------
-local Hub = CreateClass(BaseComponent)
-
-function Hub:Init(config)
-    BaseComponent.Init(self, config)
-    self.title = config.title or "Dashboard Hub"
-    self.theme = config.theme or NexusUI.DefaultTheme
-    self.toggleKey = config.toggleKey or "Y"
-    self.isOpen = true
-    self.transitionAlpha = 1.0 -- Controle de animação de entrada/saída (0 a 1)
-    
-    self.tabs = {}
-    self.activeTab = nil
-    self.favoriteItems = {} -- Registro de elementos favoritados
-    
-    -- Inicializa Abas de Sistema Nativas
-    self:_InitNativeTabs()
-end
-
-function Hub:CreateTab(name, iconAsset)
-    local tab = Tab:New({ name = name, iconAsset = iconAsset })
-    self:AddChild(tab)
-    table.insert(self.tabs, tab)
-    if not self.activeTab then
-        self.activeTab = tab
+    function tabObj:CreateSection(secTitle, bannerAsset)
+        if #self.subTabs == 0 then
+            self:CreateSubTab("Geral")
+        end
+        return self.subTabs[1]:CreateSection(secTitle, bannerAsset)
     end
-    return tab
+
+    return tabObj
 end
 
-function Hub:SetActiveTab(tab)
-    self.activeTab = tab
-    self.OnStateChanged:Fire("tab_switched", tab.name)
+-- Construtor de Seções & Componentes Interativos
+function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
+    local hub = self
+    local sectionFrame = Instance.new("Frame")
+    sectionFrame.Name = "Section_" .. title
+    sectionFrame.Size = UDim2.new(1, -8, 0, 36)
+    sectionFrame.AutomaticSize = Enum.AutomaticSize.Y
+    sectionFrame.BackgroundColor3 = Color3.fromRGB(22, 26, 36)
+    sectionFrame.BorderSizePixel = 0
+    sectionFrame.Parent = parentFrame
+
+    local secCorner = Instance.new("UICorner")
+    secCorner.CornerRadius = UDim.new(0, 8)
+    secCorner.Parent = sectionFrame
+
+    local secStroke = Instance.new("UIStroke")
+    secStroke.Color = Color3.fromRGB(35, 40, 55)
+    secStroke.Thickness = 1
+    secStroke.Parent = sectionFrame
+
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Size = UDim2.new(1, -20, 0, 32)
+    titleLbl.Position = UDim2.new(0, 14, 0, 4)
+    titleLbl.BackgroundTransparency = 1
+    titleLbl.Text = string.upper(title)
+    titleLbl.Font = Enum.Font.GothamBold
+    titleLbl.TextSize = 12
+    titleLbl.TextColor3 = ToColor3(hub.theme.Accent)
+    titleLbl.TextXAlignment = Enum.TextXAlignment.Left
+    titleLbl.Parent = sectionFrame
+
+    local widgetList = Instance.new("Frame")
+    widgetList.Name = "Widgets"
+    widgetList.Size = UDim2.new(1, -20, 0, 0)
+    widgetList.Position = UDim2.new(0, 10, 0, 40)
+    widgetList.AutomaticSize = Enum.AutomaticSize.Y
+    widgetList.BackgroundTransparency = 1
+    widgetList.Parent = sectionFrame
+
+    local wLayout = Instance.new("UIListLayout")
+    wLayout.Padding = UDim.new(0, 8)
+    wLayout.Parent = widgetList
+
+    local padding = Instance.new("UIPadding")
+    padding.PaddingBottom = UDim.new(0, 12)
+    padding.Parent = sectionFrame
+
+    local sectionApi = {}
+
+    -- [BUTTON]
+    function sectionApi:AddButton(btnCfg)
+        local btnFrame = Instance.new("TextButton")
+        btnFrame.Size = UDim2.new(1, 0, 0, 36)
+        btnFrame.BackgroundColor3 = Color3.fromRGB(28, 33, 46)
+        btnFrame.Text = (btnCfg.canFavorite and "      " or "   ") .. btnCfg.name
+        btnFrame.TextColor3 = ToColor3(hub.theme.Text)
+        btnFrame.Font = Enum.Font.GothamSemibold
+        btnFrame.TextSize = 12
+        btnFrame.TextXAlignment = Enum.TextXAlignment.Left
+        btnFrame.Parent = widgetList
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 6)
+        corner.Parent = btnFrame
+
+        local comp = Component.New(btnFrame, btnCfg, hub)
+        btnFrame.MouseButton1Click:Connect(function()
+            if comp.IsLocked then return end
+            CreateTween(btnFrame, TweenInfo.new(0.1), { BackgroundColor3 = ToColor3(hub.theme.Accent) })
+            task.wait(0.1)
+            CreateTween(btnFrame, TweenInfo.new(0.1), { BackgroundColor3 = Color3.fromRGB(28, 33, 46) })
+            if btnCfg.callback then btnCfg.callback(comp) end
+        end)
+        return comp
+    end
+
+    -- [TOGGLE]
+    function sectionApi:AddToggle(toggleCfg)
+        local tFrame = Instance.new("TextButton")
+        tFrame.Size = UDim2.new(1, 0, 0, 36)
+        tFrame.BackgroundColor3 = Color3.fromRGB(28, 33, 46)
+        tFrame.Text = (toggleCfg.canFavorite and "      " or "   ") .. toggleCfg.name
+        tFrame.TextColor3 = ToColor3(hub.theme.Text)
+        tFrame.Font = Enum.Font.GothamSemibold
+        tFrame.TextSize = 12
+        tFrame.TextXAlignment = Enum.TextXAlignment.Left
+        tFrame.Parent = widgetList
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 6)
+        corner.Parent = tFrame
+
+        -- Switch visual
+        local switch = Instance.new("Frame")
+        switch.Size = UDim2.new(0, 38, 0, 20)
+        switch.Position = UDim2.new(1, -48, 0.5, -10)
+        switch.BackgroundColor3 = toggleCfg.default and ToColor3(hub.theme.Accent) or Color3.fromRGB(40, 45, 60)
+        switch.Parent = tFrame
+
+        local swCorner = Instance.new("UICorner")
+        swCorner.CornerRadius = UDim.new(1, 0)
+        swCorner.Parent = switch
+
+        local dot = Instance.new("Frame")
+        dot.Size = UDim2.new(0, 14, 0, 14)
+        dot.Position = toggleCfg.default and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+        dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        dot.Parent = switch
+
+        local dotCorner = Instance.new("UICorner")
+        dotCorner.CornerRadius = UDim.new(1, 0)
+        dotCorner.Parent = dot
+
+        local comp = Component.New(tFrame, toggleCfg, hub)
+        local state = toggleCfg.default or false
+
+        tFrame.MouseButton1Click:Connect(function()
+            if comp.IsLocked then return end
+            state = not state
+            CreateTween(switch, TweenInfo.new(0.2), { BackgroundColor3 = state and ToColor3(hub.theme.Accent) or Color3.fromRGB(40, 45, 60) })
+            CreateTween(dot, TweenInfo.new(0.2), { Position = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7) })
+            if toggleCfg.callback then toggleCfg.callback(state) end
+        end)
+        return comp
+    end
+
+    -- [DROPDOWN]
+    function sectionApi:AddDropdown(ddCfg)
+        local dFrame = Instance.new("Frame")
+        dFrame.Size = UDim2.new(1, 0, 0, 36)
+        dFrame.AutomaticSize = Enum.AutomaticSize.Y
+        dFrame.BackgroundColor3 = Color3.fromRGB(28, 33, 46)
+        dFrame.Parent = widgetList
+
+        local dCorner = Instance.new("UICorner")
+        dCorner.CornerRadius = UDim.new(0, 6)
+        dCorner.Parent = dFrame
+
+        local headerBtn = Instance.new("TextButton")
+        headerBtn.Size = UDim2.new(1, 0, 0, 36)
+        headerBtn.BackgroundTransparency = 1
+        headerBtn.Text = "   " .. ddCfg.name .. "  ▼"
+        headerBtn.TextColor3 = ToColor3(hub.theme.Text)
+        headerBtn.Font = Enum.Font.GothamSemibold
+        headerBtn.TextSize = 12
+        headerBtn.TextXAlignment = Enum.TextXAlignment.Left
+        headerBtn.Parent = dFrame
+
+        local optList = Instance.new("Frame")
+        optList.Size = UDim2.new(1, 0, 0, 0)
+        optList.Position = UDim2.new(0, 0, 0, 38)
+        optList.AutomaticSize = Enum.AutomaticSize.Y
+        optList.BackgroundTransparency = 1
+        optList.Visible = false
+        optList.Parent = dFrame
+
+        local oLayout = Instance.new("UIListLayout")
+        oLayout.Padding = UDim.new(0, 4)
+        oLayout.Parent = optList
+
+        local comp = Component.New(dFrame, ddCfg, hub)
+        local isOpen = false
+        local selected = ddCfg.multiSelect and {} or (ddCfg.default or ddCfg.options[1])
+
+        headerBtn.MouseButton1Click:Connect(function()
+            if comp.IsLocked then return end
+            isOpen = not isOpen
+            optList.Visible = isOpen
+            headerBtn.Text = "   " .. ddCfg.name .. (isOpen and "  ▲" or "  ▼")
+        end)
+
+        for _, opt in ipairs(ddCfg.options or {}) do
+            local optBtn = Instance.new("TextButton")
+            optBtn.Size = UDim2.new(1, -16, 0, 28)
+            optBtn.Position = UDim2.new(0, 8, 0, 0)
+            optBtn.BackgroundColor3 = Color3.fromRGB(35, 42, 58)
+            optBtn.Text = "   " .. opt
+            optBtn.TextColor3 = ToColor3(hub.theme.TextDim)
+            optBtn.Font = Enum.Font.Gotham
+            optBtn.TextSize = 11
+            optBtn.TextXAlignment = Enum.TextXAlignment.Left
+            optBtn.Parent = optList
+
+            local oCorner = Instance.new("UICorner")
+            oCorner.CornerRadius = UDim.new(0, 4)
+            oCorner.Parent = optBtn
+
+            optBtn.MouseButton1Click:Connect(function()
+                if ddCfg.multiSelect then
+                    selected[opt] = not selected[opt]
+                    optBtn.TextColor3 = selected[opt] and ToColor3(hub.theme.Accent) or ToColor3(hub.theme.TextDim)
+                    if ddCfg.callback then ddCfg.callback(selected) end
+                else
+                    selected = opt
+                    isOpen = false
+                    optList.Visible = false
+                    headerBtn.Text = "   " .. ddCfg.name .. "  [" .. opt .. "]  ▼"
+                    if ddCfg.callback then ddCfg.callback(selected) end
+                end
+            end)
+        end
+        return comp
+    end
+
+    -- [KEYBIND]
+    function sectionApi:AddKeybind(kbCfg)
+        local kFrame = Instance.new("TextButton")
+        kFrame.Size = UDim2.new(1, 0, 0, 36)
+        kFrame.BackgroundColor3 = Color3.fromRGB(28, 33, 46)
+        kFrame.Text = "   " .. kbCfg.name
+        kFrame.TextColor3 = ToColor3(hub.theme.Text)
+        kFrame.Font = Enum.Font.GothamSemibold
+        kFrame.TextSize = 12
+        kFrame.TextXAlignment = Enum.TextXAlignment.Left
+        kFrame.Parent = widgetList
+
+        local corner = Instance.new("UICorner")
+        corner.CornerRadius = UDim.new(0, 6)
+        corner.Parent = kFrame
+
+        local keyBox = Instance.new("TextLabel")
+        keyBox.Size = UDim2.new(0, 60, 0, 22)
+        keyBox.Position = UDim2.new(1, -70, 0.5, -11)
+        keyBox.BackgroundColor3 = Color3.fromRGB(40, 45, 62)
+        keyBox.Text = kbCfg.default or "None"
+        keyBox.TextColor3 = ToColor3(hub.theme.Accent)
+        keyBox.Font = Enum.Font.GothamBold
+        keyBox.TextSize = 11
+        keyBox.Parent = kFrame
+
+        local kCorner = Instance.new("UICorner")
+        kCorner.CornerRadius = UDim.new(0, 4)
+        kCorner.Parent = keyBox
+
+        local comp = Component.New(kFrame, kbCfg, hub)
+        local listening = false
+
+        kFrame.MouseButton1Click:Connect(function()
+            if comp.IsLocked then return end
+            listening = true
+            keyBox.Text = "..."
+            local conn
+            conn = UserInputService.InputBegan:Connect(function(inp)
+                if inp.UserInputType == Enum.UserInputType.Keyboard then
+                    conn:Disconnect()
+                    listening = false
+                    keyBox.Text = inp.KeyCode.Name
+                    if kbCfg.callback then kbCfg.callback(inp.KeyCode.Name) end
+                end
+            end)
+        end)
+        return comp
+    end
+
+    return sectionApi
 end
 
-function Hub:Toggle()
-    self.isOpen = not self.isOpen
-    self.OnStateChanged:Fire("visibility_toggled", self.isOpen)
-end
-
--- Gerenciador do Sistema de Favoritos
-function Hub:OnFavoriteToggled(component, isFav)
-    if isFav then
-        self.favoriteItems[component.id] = component
+-- Gerenciador de Favoritos & Configurações Nativas
+function NexusUI:RegisterFavorite(comp, status)
+    if status then
+        self.favorites[comp] = true
     else
-        self.favoriteItems[component.id] = nil
-    end
-    self:_RefreshFavoritesView()
-end
-
-function Hub:_RefreshFavoritesView()
-    if not self.favoritesSubTab then return end
-    self.favoritesSubTab.sections = {}
-    self.favoritesSubTab.children = {}
-    
-    local quickSec = self.favoritesSubTab:CreateSection("Acesso Rápido")
-    for _, comp in pairs(self.favoriteItems) do
-        quickSec:AddChild(comp)
+        self.favorites[comp] = nil
     end
 end
 
--- Abas do Sistema: Favoritos e Configurações (Settings)
-function Hub:_InitNativeTabs()
-    -- 1. Aba de Favoritos
-    self.favoritesTab = Tab:New({ name = "Favoritos", iconAsset = "assets/icons/star.png" })
-    self.favoritesSubTab = self.favoritesTab:CreateSubTab("Salvos")
-    self:AddChild(self.favoritesTab)
-    table.insert(self.tabs, self.favoritesTab)
-    
-    -- 2. Aba de Configurações do Sistema
-    self.settingsTab = Tab:New({ name = "Configurações", iconAsset = "assets/icons/gear.png" })
-    local uiSettings = self.settingsTab:CreateSubTab("Interface")
-    local generalSec = uiSettings:CreateSection("Comportamento do Hub")
-    
-    -- Atalho de Abertura Global
-    generalSec:AddKeybind({
-        name = "Tecla de Atalho do Menu",
+function NexusUI:_InitNativeTabs()
+    local favTab = self:CreateTab("Favoritos")
+    local favSec = favTab:CreateSection("Acesso Rápido")
+
+    local settingsTab = self:CreateTab("Configurações")
+    local cfgSec = settingsTab:CreateSection("Geral")
+
+    cfgSec:AddKeybind({
+        name = "Atalho do Menu",
         default = self.toggleKey,
         callback = function(newKey)
             self.toggleKey = newKey
         end
     })
-    
-    -- Efeito de Blur
-    generalSec:AddToggle({
-        name = "Ativar Background Blur",
-        default = self.theme.BlurEnabled,
-        callback = function(state)
-            self.theme.BlurEnabled = state
-        end
-    })
-    
-    -- Efeito de Gradiente
-    generalSec:AddToggle({
-        name = "Ativar Gradiente no Fundo",
-        default = self.theme.BackgroundGradient.Enabled,
-        callback = function(state)
-            self.theme.BackgroundGradient.Enabled = state
-        end
-    })
-    
-    self:AddChild(self.settingsTab)
-    table.insert(self.tabs, self.settingsTab)
 end
 
--- Atualização de Estados e Transições por Frame (Tick)
-function Hub:Update(dt)
-    -- Transição suave (Fade) ao abrir e fechar
-    local targetAlpha = self.isOpen and 1.0 or 0.0
-    self.transitionAlpha = Lerp(self.transitionAlpha, targetAlpha, dt * 10)
-end
-
--- Trata Teclado Global
-function Hub:HandleKeyPress(key)
-    if key == self.toggleKey then
-        self:Toggle()
-        return true
-    end
-    return false
-end
-
--- ----------------------------------------------------------------------------
--- 7. ABSTRACT RENDERER INTERFACE (Driver desacoplado de motor)
--- ----------------------------------------------------------------------------
-local Renderer = CreateClass()
-function Renderer:RenderHub(hub)
-    if hub.transitionAlpha <= 0.01 then return end -- Invisível
-
-    -- 1. Renderizar Fundo (Gradiente, Blur e Painel Principal)
-    local theme = hub.theme
-    local currentAlpha = hub.transitionAlpha
-    
-    -- [Exemplo de chamada ao motor de renderização]
-    -- Render:DrawBlur(hub.bounds, theme.BlurEnabled and currentAlpha or 0)
-    -- Render:DrawGradient(hub.bounds, theme.BackgroundGradient.StartColor, theme.BackgroundGradient.EndColor, currentAlpha)
-    
-    -- 2. Renderizar Abas e Sub-Abas Ativas
-    -- 3. Renderizar Itens Interativos, Tags Dinâmicas e Bloqueios
-end
-
-NexusUI.CreateHub = function(config)
-    return Hub:New(config)
-end
-
+-- ============================================================================
+-- FINAL RETORNO DO MÓDULO (Para suporte a loadstring)
+-- ============================================================================
 return NexusUI
