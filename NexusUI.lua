@@ -1,7 +1,7 @@
 -- ============================================================================
--- NEXUS UI LIBRARY - ELITE CYBER EDITION (v4.0)
--- New Widgets: Fluid Sliders, TextBoxes, Floating Watermark HUD,
---              Elastic Micro-Interactions & Persistent Profile System.
+-- NEXUS UI LIBRARY - ELITE CYBER EDITION (v4.5)
+-- Features: Full Unload/Self-Destruct Architecture, Fluid Sliders, TextBoxes,
+--           Floating Watermark HUD, Elastic Micro-Interactions & Persistent Profiles.
 -- ============================================================================
 
 local TweenService = game:GetService("TweenService")
@@ -43,7 +43,7 @@ local function PlayTween(instance, info, props)
 end
 
 -- ----------------------------------------------------------------------------
--- 2. FILE SYSTEM / PROFILE PERSISTENCE ENGINE
+-- 2. FILE SYSTEM / PROFILE ENGINE
 -- ----------------------------------------------------------------------------
 local FileSystem = {}
 local FOLDER_NAME = "NexusUI_Configs"
@@ -87,7 +87,7 @@ end
 FileSystem.Init()
 
 -- ----------------------------------------------------------------------------
--- 3. THEME DEFINITIONS (PURE BLACK & NEON PINK)
+-- 3. THEME DEFINITIONS
 -- ----------------------------------------------------------------------------
 local NexusUI = {}
 NexusUI.__index = NexusUI
@@ -112,10 +112,10 @@ NexusUI.DefaultTheme = {
 -- ----------------------------------------------------------------------------
 -- 4. DRAGGABLE CONTROLLER
 -- ----------------------------------------------------------------------------
-local function MakeDraggable(dragHandle, mainFrame)
+local function MakeDraggable(dragHandle, mainFrame, hub)
     local dragging, dragInput, dragStart, startPos
 
-    dragHandle.InputBegan:Connect(function(input)
+    local c1 = dragHandle.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
@@ -129,13 +129,13 @@ local function MakeDraggable(dragHandle, mainFrame)
         end
     end)
 
-    dragHandle.InputChanged:Connect(function(input)
+    local c2 = dragHandle.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             dragInput = input
         end
     end)
 
-    UserInputService.InputChanged:Connect(function(input)
+    local c3 = UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
             PlayTween(mainFrame, TweenInfo.new(0.06, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
@@ -143,6 +143,12 @@ local function MakeDraggable(dragHandle, mainFrame)
             })
         end
     end)
+
+    if hub then
+        table.insert(hub.Connections, c1)
+        table.insert(hub.Connections, c2)
+        table.insert(hub.Connections, c3)
+    end
 end
 
 -- ----------------------------------------------------------------------------
@@ -225,12 +231,13 @@ function Component.New(instance, config, hubRef)
         local starScale = Instance.new("UIScale")
         starScale.Parent = starBtn
 
-        starBtn.MouseButton1Click:Connect(function()
+        local c = starBtn.MouseButton1Click:Connect(function()
             PlayTween(starScale, TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.4 })
             task.wait(0.1)
             PlayTween(starScale, TweenInfo.new(0.2, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Scale = 1.0 })
             self:SetFavorite(not self.IsFavorite)
         end)
+        if self.Hub then table.insert(self.Hub.Connections, c) end
         self.StarButton = starBtn
     end
 
@@ -317,7 +324,9 @@ function NexusUI.CreateHub(config)
         favorites = {},
         registeredOptions = {},
         currentProfile = "Default",
-        autoSave = true
+        autoSave = true,
+        Connections = {},
+        ActiveElements = {}
     }
     setmetatable(hub, { __index = NexusUI })
 
@@ -377,7 +386,7 @@ function NexusUI.CreateHub(config)
     topBar.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
     topBar.BorderSizePixel = 0
     topBar.Parent = main
-    MakeDraggable(topBar, main)
+    MakeDraggable(topBar, main, hub)
 
     local topBarLine = Instance.new("Frame")
     topBarLine.Size = UDim2.new(1, 0, 0, 1)
@@ -434,9 +443,8 @@ function NexusUI.CreateHub(config)
     closeStroke.Thickness = 1
     closeStroke.Parent = closeBtn
 
-    closeBtn.MouseButton1Click:Connect(function()
-        hub:Toggle()
-    end)
+    local cClose = closeBtn.MouseButton1Click:Connect(function() hub:Toggle() end)
+    table.insert(hub.Connections, cClose)
 
     local sidebar = Instance.new("Frame")
     sidebar.Name = "Sidebar"
@@ -482,18 +490,19 @@ function NexusUI.CreateHub(config)
 
     hub:_InitNativeTabs()
 
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    local cKey = UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode.Name == hub.toggleKey then
             hub:Toggle()
         end
     end)
+    table.insert(hub.Connections, cKey)
 
     return hub
 end
 
 -- ----------------------------------------------------------------------------
--- 7. RECURSO PREMIUM: FLOATING WATERMARK HUD (FPS, PING, USER)
+-- 7. WATERMARK HUD & MÉTODO DE DESTRUIÇÃO TOTAL (UNLOAD)
 -- ----------------------------------------------------------------------------
 function NexusUI:AddWatermark(config)
     config = config or {}
@@ -507,7 +516,8 @@ function NexusUI:AddWatermark(config)
     wmFrame.BorderSizePixel = 0
     wmFrame.ZIndex = 100
     wmFrame.Parent = self.ScreenGui
-    MakeDraggable(wmFrame, wmFrame)
+    MakeDraggable(wmFrame, wmFrame, self)
+    table.insert(self.ActiveElements, wmFrame)
 
     local wmCorner = Instance.new("UICorner")
     wmCorner.CornerRadius = UDim.new(0, 6)
@@ -530,7 +540,7 @@ function NexusUI:AddWatermark(config)
     wmLbl.Parent = wmFrame
 
     task.spawn(function()
-        while wmFrame and wmFrame.Parent do
+        while wmFrame and wmFrame.Parent and self.ScreenGui do
             local fps = math.floor(1 / (RunService.RenderStepped:Wait() or 0.016))
             local ping = math.floor(math.random(25, 38))
             wmLbl.Text = "◈ " .. watermarkTitle .. "  |  " .. tostring(fps) .. " FPS  |  " .. tostring(ping) .. "ms  |  " .. LocalPlayer.DisplayName
@@ -541,8 +551,38 @@ function NexusUI:AddWatermark(config)
     return wmFrame
 end
 
+-- Destruição / Descarregamento Completo da Biblioteca
+function NexusUI:Destroy()
+    self:Notify({
+        title = "Descarregando",
+        content = "Encerrando Nexus UI e limpando conexões...",
+        duration = 1.5
+    })
+    task.wait(0.4)
+
+    -- 1. Desconecta todos os eventos e loops
+    for _, conn in ipairs(self.Connections) do
+        pcall(function() conn:Disconnect() end)
+    end
+    self.Connections = {}
+
+    -- 2. Limpa elementos extras criados
+    for _, elem in ipairs(self.ActiveElements) do
+        pcall(function() elem:Destroy() end)
+    end
+    self.ActiveElements = {}
+
+    -- 3. Deleta a interface visual completa
+    if self.ScreenGui then
+        self.ScreenGui:Destroy()
+        self.ScreenGui = nil
+    end
+
+    print("[NEXUS] Interface descarregada com sucesso!")
+end
+
 -- ----------------------------------------------------------------------------
--- 8. ANIMAÇÃO DE JANELA & NOTIFICAÇÕES
+-- 8. ANIMAÇÕES, NOTIFICAÇÕES E PERFIS
 -- ----------------------------------------------------------------------------
 function NexusUI:Toggle()
     self.isOpen = not self.isOpen
@@ -565,6 +605,8 @@ function NexusUI:Notify(config)
     local title = config.title or "NEXUS SISTEMA"
     local content = config.content or "Operação realizada."
     local duration = config.duration or 3.5
+
+    if not self.NotificationContainer then return end
 
     local notif = Instance.new("Frame")
     notif.Name = "Toast"
@@ -617,8 +659,10 @@ function NexusUI:Notify(config)
     PlayTween(progressBar, TweenInfo.new(duration, Enum.EasingStyle.Linear), { Size = UDim2.new(0, 0, 0, 2) })
 
     task.delay(duration, function()
-        local outTw = PlayTween(notif, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Position = UDim2.new(1, 100, 0, 0) })
-        outTw.Completed:Connect(function() notif:Destroy() end)
+        if notif and notif.Parent then
+            local outTw = PlayTween(notif, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Position = UDim2.new(1, 100, 0, 0) })
+            outTw.Completed:Connect(function() notif:Destroy() end)
+        end
     end)
 end
 
@@ -737,7 +781,8 @@ function NexusUI:CreateTab(name, iconAsset)
         hub.activeTab = tabObj
     end
 
-    tabBtn.MouseButton1Click:Connect(ActivateThisTab)
+    local cTab = tabBtn.MouseButton1Click:Connect(ActivateThisTab)
+    table.insert(hub.Connections, cTab)
     table.insert(hub.tabs, tabObj)
 
     if #hub.tabs == 1 then ActivateThisTab() end
@@ -805,7 +850,8 @@ function NexusUI:CreateTab(name, iconAsset)
             tabObj.activeSubTab = subObj
         end
 
-        subBtn.MouseButton1Click:Connect(ActivateSub)
+        local cSub = subBtn.MouseButton1Click:Connect(ActivateSub)
+        table.insert(hub.Connections, cSub)
         table.insert(tabObj.subTabs, subObj)
         if #tabObj.subTabs == 1 then ActivateSub() end
 
@@ -831,7 +877,7 @@ function NexusUI:CreateTab(name, iconAsset)
 end
 
 -- ----------------------------------------------------------------------------
--- 10. CONSTRUTOR DE SEÇÕES & WIDGETS (SLIDERS, TEXTBOX, BUTTONS, TOGGLES)
+-- 10. CONSTRUTOR DE SEÇÕES & WIDGETS
 -- ----------------------------------------------------------------------------
 function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
     local hub = self
@@ -926,19 +972,19 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
 
         local comp = Component.New(btn, btnCfg, hub)
 
-        btn.MouseEnter:Connect(function()
+        local cEnter = btn.MouseEnter:Connect(function()
             if not comp.IsLocked then
                 PlayTween(btn, TweenInfo.new(0.2), { BackgroundColor3 = Color3.fromRGB(26, 20, 32) })
                 PlayTween(stroke, TweenInfo.new(0.2), { Color = ToColor3(hub.theme.Accent), Thickness = 1.4 })
             end
         end)
-        btn.MouseLeave:Connect(function()
+        local cLeave = btn.MouseLeave:Connect(function()
             if not comp.IsLocked then
                 PlayTween(btn, TweenInfo.new(0.2), { BackgroundColor3 = Color3.fromRGB(18, 18, 25) })
                 PlayTween(stroke, TweenInfo.new(0.2), { Color = Color3.fromRGB(34, 25, 38), Thickness = 1.0 })
             end
         end)
-        btn.MouseButton1Click:Connect(function()
+        local cClick = btn.MouseButton1Click:Connect(function()
             if comp.IsLocked then return end
             PlayTween(comp.Scale, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 0.95 })
             PlayTween(btn, TweenInfo.new(0.08), { BackgroundColor3 = ToColor3(hub.theme.Accent) })
@@ -947,10 +993,14 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
             PlayTween(btn, TweenInfo.new(0.15), { BackgroundColor3 = Color3.fromRGB(26, 20, 32) })
             if btnCfg.callback then btnCfg.callback(comp) end
         end)
+
+        table.insert(hub.Connections, cEnter)
+        table.insert(hub.Connections, cLeave)
+        table.insert(hub.Connections, cClick)
         return comp
     end
 
-    -- [TOGGLE COM FÍSICA DE MOLA]
+    -- [TOGGLE]
     function secApi:AddToggle(tCfg)
         local tBtn = Instance.new("TextButton")
         tBtn.AutoButtonColor = false
@@ -1024,10 +1074,11 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
             if hub.autoSave then hub:SaveConfig(hub.currentProfile) end
         end
 
-        tBtn.MouseButton1Click:Connect(function()
+        local cToggle = tBtn.MouseButton1Click:Connect(function()
             if comp.IsLocked then return end
             SetToggleState(not state)
         end)
+        table.insert(hub.Connections, cToggle)
 
         local optId = tCfg.id or tCfg.name
         hub.registeredOptions[optId] = {
@@ -1038,7 +1089,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         return comp
     end
 
-    -- [NOVO WIDGET: SLIDER FLUIDO COM ARRASTE E PORCENTAGEM]
+    -- [SLIDER]
     function secApi:AddSlider(sCfg)
         local min = sCfg.min or 0
         local max = sCfg.max or 100
@@ -1129,7 +1180,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
             if hub.autoSave then hub:SaveConfig(hub.currentProfile) end
         end
 
-        sliderBar.InputBegan:Connect(function(input)
+        local cDown = sliderBar.InputBegan:Connect(function(input)
             if comp.IsLocked then return end
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 dragging = true
@@ -1138,18 +1189,22 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
             end
         end)
 
-        UserInputService.InputChanged:Connect(function(input)
+        local cMove = UserInputService.InputChanged:Connect(function(input)
             if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
                 UpdateValue(input)
             end
         end)
 
-        UserInputService.InputEnded:Connect(function(input)
+        local cUp = UserInputService.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
                 dragging = false
                 PlayTween(knob, TweenInfo.new(0.15), { Size = UDim2.new(0, 14, 0, 14), Position = UDim2.new(1, -7, 0.5, -7) })
             end
         end)
+
+        table.insert(hub.Connections, cDown)
+        table.insert(hub.Connections, cMove)
+        table.insert(hub.Connections, cUp)
 
         local optId = sCfg.id or sCfg.name
         hub.registeredOptions[optId] = {
@@ -1166,7 +1221,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         return comp
     end
 
-    -- [NOVO WIDGET: TEXTBOX PARA INSERIR DADOS E COMANDOS]
+    -- [TEXTINPUT]
     function secApi:AddTextInput(tbCfg)
         local tbFrame = Instance.new("Frame")
         tbFrame.BorderSizePixel = 0
@@ -1217,14 +1272,16 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         boxStroke.Thickness = 1
         boxStroke.Parent = inputBox
 
-        inputBox.Focused:Connect(function()
+        local cFoc = inputBox.Focused:Connect(function()
             PlayTween(boxStroke, TweenInfo.new(0.2), { Color = ToColor3(hub.theme.Accent) })
         end)
-
-        inputBox.FocusLost:Connect(function(enterPressed)
+        local cLost = inputBox.FocusLost:Connect(function(enterPressed)
             PlayTween(boxStroke, TweenInfo.new(0.2), { Color = Color3.fromRGB(36, 26, 40) })
             if tbCfg.callback then tbCfg.callback(inputBox.Text, enterPressed) end
         end)
+
+        table.insert(hub.Connections, cFoc)
+        table.insert(hub.Connections, cLost)
 
         return Component.New(tbFrame, tbCfg, hub)
     end
@@ -1294,7 +1351,8 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
             PlayTween(dStroke, TweenInfo.new(0.2), { Color = isOpen and ToColor3(hub.theme.Accent) or Color3.fromRGB(34, 25, 38) })
         end
 
-        headerBtn.MouseButton1Click:Connect(ToggleDropdown)
+        local cDrop = headerBtn.MouseButton1Click:Connect(ToggleDropdown)
+        table.insert(hub.Connections, cDrop)
 
         for _, opt in ipairs(ddCfg.options or {}) do
             local optBtn = Instance.new("TextButton")
@@ -1319,7 +1377,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
             oStroke.Thickness = 1
             oStroke.Parent = optBtn
 
-            optBtn.MouseButton1Click:Connect(function()
+            local cOpt = optBtn.MouseButton1Click:Connect(function()
                 if ddCfg.multiSelect then
                     selected[opt] = not selected[opt]
                     optBtn.TextColor3 = selected[opt] and ToColor3(hub.theme.Accent) or ToColor3(hub.theme.TextDim)
@@ -1333,6 +1391,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
                 end
                 if hub.autoSave then hub:SaveConfig(hub.currentProfile) end
             end)
+            table.insert(hub.Connections, cOpt)
         end
 
         local optId = ddCfg.id or ddCfg.name
@@ -1395,7 +1454,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         local listening = false
         local currentBoundKey = kbCfg.default or "None"
 
-        kBtn.MouseButton1Click:Connect(function()
+        local cKeyBind = kBtn.MouseButton1Click:Connect(function()
             if comp.IsLocked then return end
             listening = true
             keyBox.Text = "..."
@@ -1414,6 +1473,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
                 end
             end)
         end)
+        table.insert(hub.Connections, cKeyBind)
 
         local optId = kbCfg.id or kbCfg.name
         hub.registeredOptions[optId] = {
@@ -1432,7 +1492,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
 end
 
 -- ----------------------------------------------------------------------------
--- 11. ABAS NATIVAS
+-- 11. ABAS NATIVAS & BOTÃO "DESTRUIR NEXUS"
 -- ----------------------------------------------------------------------------
 function NexusUI:RegisterFavorite(comp, status)
     if status then self.favorites[comp] = true else self.favorites[comp] = nil end
@@ -1468,12 +1528,22 @@ function NexusUI:_InitNativeTabs()
         callback = function(state) self.autoSave = state end
     })
 
-    local cfgSec = settingsTab:CreateSection("Atalhos do Sistema")
-    cfgSec:AddKeybind({
+    local sysSec = settingsTab:CreateSection("Gerenciamento do Sistema")
+    sysSec:AddKeybind({
         name = "Atalho do Menu",
         default = self.toggleKey,
         callback = function(newKey) self.toggleKey = newKey end
     })
+
+    -- BOTÃO DE AUTODESTRUIÇÃO TOTAL (UNLOAD)
+    local destroyBtn = sysSec:AddButton({
+        name = "⚠️ Destruir / Descarregar Nexus UI",
+        callback = function()
+            self:Destroy()
+        end
+    })
+    destroyBtn.Instance.BackgroundColor3 = Color3.fromRGB(35, 15, 22)
+    destroyBtn.Instance.TextColor3 = Color3.fromRGB(255, 70, 100)
 end
 
 return NexusUI
