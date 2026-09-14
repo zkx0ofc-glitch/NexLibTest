@@ -1,5 +1,5 @@
 -- ============================================================================
--- NEXUS UI LIBRARY - CYBER DARK & NEON PINK EDITION
+-- NEXUS UI LIBRARY - 100% PURE BLACK & NEON PINK (NO WHITE ARTIFACTS)
 -- Architecture: Object-Oriented (Metatables) & Roblox Luau UI Framework
 -- ============================================================================
 
@@ -12,7 +12,7 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
 -- ----------------------------------------------------------------------------
--- 1. UTILITIES & THEME CONFIGURATION (DEFAULT: BLACK & PINK OUTLINE)
+-- 1. UTILITIES & THEME CONFIGURATION (PRETO ABSOLUTO & ROSA NEON)
 -- ----------------------------------------------------------------------------
 local function GetGuiContainer()
     local success, container = pcall(function()
@@ -31,14 +31,7 @@ local function ToColor3(c, default)
         local b = c.b or c[3] or 255
         return Color3.fromRGB(r, g, b)
     end
-    return default or Color3.fromRGB(255, 255, 255)
-end
-
-local function ToTransparency(c, default)
-    if type(c) == "table" and c.a ~= nil then
-        return 1 - math.clamp(c.a, 0, 1)
-    end
-    return default or 0
+    return default or Color3.fromRGB(255, 42, 133)
 end
 
 local function PlayTween(instance, info, props)
@@ -50,26 +43,26 @@ end
 local NexusUI = {}
 NexusUI.__index = NexusUI
 
--- PALETA PADRÃO: PRETO PROFUNDO COM CONTORNO ROSA NEON
+-- PALETA DE CORES: 100% PRETO, GRAFITE & ROSA NEON (SEM BRANCO)
 NexusUI.DefaultTheme = {
-    BackgroundPrimary   = { r = 10, g = 10, b = 14, a = 0.97 },  -- Preto Profundo
-    BackgroundSecondary = { r = 14, g = 14, b = 20, a = 1.0 },   -- Preto Grafite
-    BackgroundWidget    = { r = 18, g = 18, b = 26, a = 1.0 },   -- Superfície dos Itens
-    BackgroundHover     = { r = 26, g = 24, b = 36, a = 1.0 },   -- Hover Suave
+    BackgroundPrimary   = { r = 10, g = 10, b = 14, a = 1.0 },   -- Preto Absoluto Sólido
+    BackgroundSecondary = { r = 14, g = 14, b = 20, a = 1.0 },   -- Grafite Escuro
+    BackgroundWidget    = { r = 18, g = 18, b = 25, a = 1.0 },   -- Fundo dos Itens
+    BackgroundHover     = { r = 26, g = 20, b = 32, a = 1.0 },   -- Hover Rosa Sutil
     
-    Outline             = { r = 255, g = 42, b = 133, a = 1.0 }, -- Rosa Neon Glow
-    OutlineSubtle       = { r = 60, g = 30, b = 50, a = 0.8 },   -- Contorno Interno Discreto
+    Outline             = { r = 255, g = 42, b = 133, a = 1.0 }, -- Rosa Neon (#FF2A85)
+    OutlineSubtle       = { r = 45, g = 25, b = 40, a = 1.0 },   -- Borda Secundária
     
-    Accent              = { r = 255, g = 42, b = 133, a = 1.0 }, -- Rosa Neon Primário
-    AccentHover         = { r = 255, g = 80, b = 160, a = 1.0 }, -- Rosa Luminoso
+    Accent              = { r = 255, g = 42, b = 133, a = 1.0 }, -- Rosa Neon Ativo
+    AccentHover         = { r = 255, g = 75, b = 155, a = 1.0 },
     
-    Text                = { r = 255, g = 255, b = 255, a = 1.0 },
-    TextDim             = { r = 150, g = 145, b = 165, a = 1.0 },
-    LockedOverlay       = { r = 8, g = 8, b = 12, a = 0.88 }
+    Text                = { r = 245, g = 240, b = 248, a = 1.0 }, -- Cinza Rosado Claro (Sem Branco Puro)
+    TextDim             = { r = 140, g = 135, b = 150, a = 1.0 }, -- Muted Text
+    LockedOverlay       = { r = 8, g = 8, b = 12, a = 0.90 }     -- Overlay Escuro
 }
 
 -- ----------------------------------------------------------------------------
--- 2. DRAGGABLE CONTROLLER (Arrastar Fluido pelo TopBar)
+-- 2. DRAGGABLE CONTROLLER (Arrastar a Janela pelo Topo)
 -- ----------------------------------------------------------------------------
 local function MakeDraggable(dragHandle, mainFrame)
     local dragging, dragInput, dragStart, startPos
@@ -97,7 +90,7 @@ local function MakeDraggable(dragHandle, mainFrame)
     UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - dragStart
-            PlayTween(mainFrame, TweenInfo.new(0.06, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+            PlayTween(mainFrame, TweenInfo.new(0.05, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
                 Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
             })
         end
@@ -105,7 +98,7 @@ local function MakeDraggable(dragHandle, mainFrame)
 end
 
 -- ----------------------------------------------------------------------------
--- 3. BASE COMPONENT (Tags Dinâmicas, Bloqueio Estilizado & Favoritos)
+-- 3. BASE COMPONENT (Tags, Lock Overlay & Favoritos)
 -- ----------------------------------------------------------------------------
 local Component = {}
 Component.__index = Component
@@ -120,12 +113,13 @@ function Component.New(instance, config, hubRef)
     self.LockReason = config.lockReason or "Bloqueado"
     self.IsFavorite = false
 
-    -- Container de Tags Dinâmicas (Badges à Direita)
+    -- Container de Tags Dinâmicas
     self.TagContainer = Instance.new("Frame")
     self.TagContainer.Name = "TagContainer"
     self.TagContainer.BackgroundTransparency = 1
+    self.TagContainer.BorderSizePixel = 0
     self.TagContainer.Size = UDim2.new(0, 0, 1, 0)
-    self.TagContainer.Position = UDim2.new(1, -12, 0, 0)
+    self.TagContainer.Position = UDim2.new(1, -10, 0, 0)
     self.TagContainer.AnchorPoint = Vector2.new(1, 0)
     self.TagContainer.ZIndex = 8
     self.TagContainer.Parent = self.Instance
@@ -137,39 +131,42 @@ function Component.New(instance, config, hubRef)
     tagLayout.Padding = UDim.new(0, 6)
     tagLayout.Parent = self.TagContainer
 
-    -- Camada de Bloqueio Estilizada (Lock Overlay Neon)
+    -- Camada de Bloqueio (Lock Overlay Rosa Escuro)
     self.LockOverlay = Instance.new("TextButton")
     self.LockOverlay.Name = "LockOverlay"
+    self.LockOverlay.AutoButtonColor = false
+    self.LockOverlay.BorderSizePixel = 0
     self.LockOverlay.Size = UDim2.new(1, 0, 1, 0)
     self.LockOverlay.BackgroundColor3 = ToColor3(NexusUI.DefaultTheme.LockedOverlay)
-    self.LockOverlay.BackgroundTransparency = 0.15
+    self.LockOverlay.BackgroundTransparency = 0.12
     self.LockOverlay.Text = "🔒  " .. string.upper(self.LockReason)
-    self.LockOverlay.TextColor3 = Color3.fromRGB(255, 70, 100)
+    self.LockOverlay.TextColor3 = Color3.fromRGB(255, 60, 110)
     self.LockOverlay.Font = Enum.Font.GothamBold
     self.LockOverlay.TextSize = 11
     self.LockOverlay.Visible = self.IsLocked
     self.LockOverlay.ZIndex = 20
-    self.LockOverlay.AutoButtonColor = false
 
     local lockCorner = Instance.new("UICorner")
     lockCorner.CornerRadius = UDim.new(0, 6)
     lockCorner.Parent = self.LockOverlay
 
     local lockStroke = Instance.new("UIStroke")
-    lockStroke.Color = Color3.fromRGB(150, 30, 60)
+    lockStroke.Color = Color3.fromRGB(160, 25, 65)
     lockStroke.Thickness = 1
     lockStroke.Parent = self.LockOverlay
     self.LockOverlay.Parent = self.Instance
 
-    -- Botão de Favorito (Estrela Neon)
+    -- Botão de Favorito (Sem piscar branco)
     if self.Config.canFavorite then
         local starBtn = Instance.new("TextButton")
         starBtn.Name = "FavoriteStar"
+        starBtn.AutoButtonColor = false
+        starBtn.BorderSizePixel = 0
         starBtn.Size = UDim2.new(0, 22, 0, 22)
         starBtn.Position = UDim2.new(0, 8, 0.5, -11)
         starBtn.BackgroundTransparency = 1
         starBtn.Text = "★"
-        starBtn.TextColor3 = Color3.fromRGB(60, 60, 80)
+        starBtn.TextColor3 = Color3.fromRGB(65, 60, 75)
         starBtn.Font = Enum.Font.GothamBold
         starBtn.TextSize = 14
         starBtn.ZIndex = 10
@@ -191,10 +188,11 @@ function Component:UpdateTag(tagId, text, colorData)
     if not tag then
         local badge = Instance.new("TextLabel")
         badge.Name = "Tag_" .. tostring(tagId)
+        badge.BorderSizePixel = 0
         badge.AutomaticSize = Enum.AutomaticSize.X
         badge.Size = UDim2.new(0, 0, 0, 18)
-        badge.BackgroundColor3 = color
-        badge.BackgroundTransparency = 0.8
+        badge.BackgroundColor3 = Color3.fromRGB(20, 15, 24)
+        badge.BackgroundTransparency = 0.2
         badge.TextColor3 = color
         badge.Font = Enum.Font.GothamBold
         badge.TextSize = 10
@@ -208,7 +206,6 @@ function Component:UpdateTag(tagId, text, colorData)
         local stroke = Instance.new("UIStroke")
         stroke.Color = color
         stroke.Thickness = 1
-        stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         stroke.Parent = badge
 
         badge.Parent = self.TagContainer
@@ -216,7 +213,6 @@ function Component:UpdateTag(tagId, text, colorData)
     else
         tag.Text = "  " .. tostring(text) .. "  "
         tag.TextColor3 = color
-        tag.BackgroundColor3 = color
         local stroke = tag:FindFirstChildOfClass("UIStroke")
         if stroke then stroke.Color = color end
     end
@@ -234,7 +230,7 @@ function Component:SetFavorite(status)
     self.IsFavorite = status
     if self.StarButton then
         PlayTween(self.StarButton, TweenInfo.new(0.2), {
-            TextColor3 = self.IsFavorite and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(60, 60, 80)
+            TextColor3 = self.IsFavorite and Color3.fromRGB(255, 42, 133) or Color3.fromRGB(65, 60, 75)
         })
     end
     if self.Hub and self.Hub.RegisterFavorite then
@@ -243,20 +239,12 @@ function Component:SetFavorite(status)
 end
 
 -- ----------------------------------------------------------------------------
--- 4. HUB PRINCIPAL (PRETO COM CONTORNO ROSA)
+-- 4. HUB PRINCIPAL (100% PRETO + CONTORNO ROSA NEON)
 -- ----------------------------------------------------------------------------
 function NexusUI.CreateHub(config)
     config = config or {}
-    
-    -- Mescla tema customizado com o padrão Preto e Rosa
-    local theme = {}
-    for k, v in pairs(NexusUI.DefaultTheme) do
-        theme[k] = (config.theme and config.theme[k]) and config.theme[k] or v
-    end
-    -- Garante contorno Rosa caso não seja especificado
-    if not theme.Outline then theme.Outline = NexusUI.DefaultTheme.Outline end
-
-    local bounds = config.bounds or { x = 200, y = 150, width = 850, height = 550 }
+    local theme = NexusUI.DefaultTheme
+    local bounds = config.bounds or { x = 180, y = 120, width = 860, height = 540 }
 
     local hub = {
         title = config.title or "NEXUS INTERACTIVE DASHBOARD",
@@ -271,19 +259,19 @@ function NexusUI.CreateHub(config)
 
     -- 1. ScreenGui
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "NexusUI_CyberHub"
+    screenGui.Name = "NexusUI_Framework"
     screenGui.ResetOnSpawn = false
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.Parent = GetGuiContainer()
     hub.ScreenGui = screenGui
 
-    -- 2. Janela Principal (Fundo Preto + Borda Rosa Glow)
+    -- 2. Janela Principal (Preto 100% Sólido)
     local main = Instance.new("Frame")
-    main.Name = "MainFrame"
+    main.Name = "MainHub"
     main.Size = UDim2.new(0, bounds.width, 0, bounds.height)
     main.Position = UDim2.new(0, bounds.x, 0, bounds.y)
-    main.BackgroundColor3 = ToColor3(theme.BackgroundPrimary)
-    main.BackgroundTransparency = ToTransparency(theme.BackgroundPrimary)
+    main.BackgroundColor3 = Color3.fromRGB(10, 10, 14) -- 100% PRETO
+    main.BackgroundTransparency = 0                     -- ANTI-VAZAMENTO
     main.BorderSizePixel = 0
     main.ClipsDescendants = true
     main.Parent = screenGui
@@ -293,39 +281,36 @@ function NexusUI.CreateHub(config)
     mainCorner.CornerRadius = UDim.new(0, 10)
     mainCorner.Parent = main
 
-    -- CONTORNO ROSA NEON (Formidável e Marcante)
+    -- CONTORNO ROSA NEON
     local pinkStroke = Instance.new("UIStroke")
     pinkStroke.Name = "NeonOutline"
     pinkStroke.Color = ToColor3(theme.Outline)
     pinkStroke.Thickness = 1.8
-    pinkStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     pinkStroke.Parent = main
 
-    -- 3. TopBar (Cabeçalho com Drag)
+    -- 3. TopBar (Cabeçalho)
     local topBar = Instance.new("Frame")
     topBar.Name = "TopBar"
-    topBar.Size = UDim2.new(1, 0, 0, 46)
+    topBar.Size = UDim2.new(1, 0, 0, 44)
     topBar.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
     topBar.BorderSizePixel = 0
     topBar.Parent = main
     MakeDraggable(topBar, main)
 
-    -- Linha Rosa Divisória sob o TopBar
     local topBarLine = Instance.new("Frame")
     topBarLine.Size = UDim2.new(1, 0, 0, 1)
     topBarLine.Position = UDim2.new(0, 0, 1, -1)
     topBarLine.BackgroundColor3 = ToColor3(theme.Outline)
-    topBarLine.BackgroundTransparency = 0.3
     topBarLine.BorderSizePixel = 0
     topBarLine.Parent = topBar
 
-    -- Ícone / Logo Tag
     local logoTag = Instance.new("TextLabel")
     logoTag.Size = UDim2.new(0, 24, 0, 24)
-    logoTag.Position = UDim2.new(0, 14, 0.5, -12)
+    logoTag.Position = UDim2.new(0, 12, 0.5, -12)
     logoTag.BackgroundColor3 = ToColor3(theme.Accent)
+    logoTag.BorderSizePixel = 0
     logoTag.Text = "◈"
-    logoTag.TextColor3 = Color3.fromRGB(255, 255, 255)
+    logoTag.TextColor3 = Color3.fromRGB(10, 10, 14)
     logoTag.Font = Enum.Font.GothamBold
     logoTag.TextSize = 14
     logoTag.Parent = topBar
@@ -334,23 +319,24 @@ function NexusUI.CreateHub(config)
     logoCorner.CornerRadius = UDim.new(0, 5)
     logoCorner.Parent = logoTag
 
-    -- Título
     local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(1, -150, 1, 0)
-    titleLabel.Position = UDim2.new(0, 48, 0, 0)
+    titleLabel.Size = UDim2.new(1, -120, 1, 0)
+    titleLabel.Position = UDim2.new(0, 44, 0, 0)
     titleLabel.BackgroundTransparency = 1
+    titleLabel.BorderSizePixel = 0
     titleLabel.Text = hub.title
     titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.TextSize = 13
+    titleLabel.TextSize = 12
     titleLabel.TextColor3 = ToColor3(theme.Text)
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
     titleLabel.Parent = topBar
 
-    -- Botão Fechar Customizado
     local closeBtn = Instance.new("TextButton")
-    closeBtn.Size = UDim2.new(0, 28, 0, 28)
-    closeBtn.Position = UDim2.new(1, -38, 0.5, -14)
-    closeBtn.BackgroundColor3 = Color3.fromRGB(20, 15, 22)
+    closeBtn.AutoButtonColor = false
+    closeBtn.BorderSizePixel = 0
+    closeBtn.Size = UDim2.new(0, 26, 0, 26)
+    closeBtn.Position = UDim2.new(1, -36, 0.5, -13)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(18, 14, 22)
     closeBtn.Text = "✕"
     closeBtn.TextColor3 = ToColor3(theme.Accent)
     closeBtn.Font = Enum.Font.GothamBold
@@ -358,7 +344,7 @@ function NexusUI.CreateHub(config)
     closeBtn.Parent = topBar
 
     local closeCorner = Instance.new("UICorner")
-    closeCorner.CornerRadius = UDim.new(0, 6)
+    closeCorner.CornerRadius = UDim.new(0, 5)
     closeCorner.Parent = closeBtn
 
     local closeStroke = Instance.new("UIStroke")
@@ -366,58 +352,54 @@ function NexusUI.CreateHub(config)
     closeStroke.Thickness = 1
     closeStroke.Parent = closeBtn
 
-    closeBtn.MouseEnter:Connect(function()
-        PlayTween(closeBtn, TweenInfo.new(0.15), { BackgroundColor3 = Color3.fromRGB(230, 40, 80), TextColor3 = Color3.fromRGB(255, 255, 255) })
-    end)
-    closeBtn.MouseLeave:Connect(function()
-        PlayTween(closeBtn, TweenInfo.new(0.15), { BackgroundColor3 = Color3.fromRGB(20, 15, 22), TextColor3 = ToColor3(theme.Accent) })
-    end)
     closeBtn.MouseButton1Click:Connect(function() hub:Toggle() end)
 
     -- 4. Sidebar (Menu Lateral)
     local sidebar = Instance.new("Frame")
     sidebar.Name = "Sidebar"
-    sidebar.Size = UDim2.new(0, 200, 1, -46)
-    sidebar.Position = UDim2.new(0, 0, 0, 46)
-    sidebar.BackgroundColor3 = ToColor3(theme.BackgroundSecondary)
+    sidebar.Size = UDim2.new(0, 190, 1, -44)
+    sidebar.Position = UDim2.new(0, 0, 0, 44)
+    sidebar.BackgroundColor3 = Color3.fromRGB(13, 13, 18)
     sidebar.BorderSizePixel = 0
     sidebar.Parent = main
 
-    -- Linha Divisória Lateral
     local sideDiv = Instance.new("Frame")
     sideDiv.Size = UDim2.new(0, 1, 1, 0)
     sideDiv.Position = UDim2.new(1, -1, 0, 0)
-    sideDiv.BackgroundColor3 = Color3.fromRGB(30, 25, 38)
+    sideDiv.BackgroundColor3 = Color3.fromRGB(30, 24, 36)
     sideDiv.BorderSizePixel = 0
     sideDiv.Parent = sidebar
 
     local tabList = Instance.new("ScrollingFrame")
     tabList.Name = "TabList"
-    tabList.Size = UDim2.new(1, -16, 1, -20)
-    tabList.Position = UDim2.new(0, 8, 0, 10)
+    tabList.Size = UDim2.new(1, -12, 1, -16)
+    tabList.Position = UDim2.new(0, 6, 0, 8)
     tabList.BackgroundTransparency = 1
+    tabList.BorderSizePixel = 0
     tabList.ScrollBarThickness = 2
     tabList.ScrollBarImageColor3 = ToColor3(theme.Accent)
+    tabList.BottomImage = ""
+    tabList.MidImage = ""
+    tabList.TopImage = ""
     tabList.Parent = sidebar
 
     local tabLayout = Instance.new("UIListLayout")
-    tabLayout.Padding = UDim.new(0, 6)
+    tabLayout.Padding = UDim.new(0, 5)
     tabLayout.Parent = tabList
     hub.TabList = tabList
 
     -- 5. Content Container
     local contentContainer = Instance.new("Frame")
     contentContainer.Name = "ContentContainer"
-    contentContainer.Size = UDim2.new(1, -214, 1, -58)
-    contentContainer.Position = UDim2.new(0, 208, 0, 52)
+    contentContainer.Size = UDim2.new(1, -202, 1, -54)
+    contentContainer.Position = UDim2.new(0, 196, 0, 48)
     contentContainer.BackgroundTransparency = 1
+    contentContainer.BorderSizePixel = 0
     contentContainer.Parent = main
     hub.ContentContainer = contentContainer
 
-    -- Inicializa Abas de Sistema
     hub:_InitNativeTabs()
 
-    -- Tecla de Atalho Global (Toggle Key)
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then return end
         if input.KeyCode.Name == hub.toggleKey then
@@ -428,37 +410,25 @@ function NexusUI.CreateHub(config)
     return hub
 end
 
--- ----------------------------------------------------------------------------
--- 5. MÉTODOS DE CONTROLE (Tabs, Sub-Tabs & Sections)
--- ----------------------------------------------------------------------------
 function NexusUI:Toggle()
     self.isOpen = not self.isOpen
-    if self.isOpen then
-        self.MainFrame.Visible = true
-        PlayTween(self.MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-            BackgroundTransparency = ToTransparency(self.theme.BackgroundPrimary)
-        })
-    else
-        local tw = PlayTween(self.MainFrame, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
-            BackgroundTransparency = 1
-        })
-        tw.Completed:Connect(function()
-            if not self.isOpen then self.MainFrame.Visible = false end
-        end)
-    end
+    self.MainFrame.Visible = self.isOpen
 end
 
 function NexusUI:Update(dt) end
 
+-- ----------------------------------------------------------------------------
+-- 5. CRIAÇÃO DE ABAS & SUB-ABAS
+-- ----------------------------------------------------------------------------
 function NexusUI:CreateTab(name, iconAsset)
     local hub = self
 
-    -- Botão da Aba na Sidebar
     local tabBtn = Instance.new("TextButton")
-    tabBtn.Name = "Tab_" .. name
-    tabBtn.Size = UDim2.new(1, 0, 0, 40)
-    tabBtn.BackgroundColor3 = Color3.fromRGB(18, 16, 24)
-    tabBtn.BackgroundTransparency = 1
+    tabBtn.Name = "TabBtn_" .. name
+    tabBtn.AutoButtonColor = false
+    tabBtn.BorderSizePixel = 0
+    tabBtn.Size = UDim2.new(1, 0, 0, 38)
+    tabBtn.BackgroundColor3 = Color3.fromRGB(13, 13, 18)
     tabBtn.Text = "      " .. name
     tabBtn.TextColor3 = ToColor3(hub.theme.TextDim)
     tabBtn.Font = Enum.Font.GothamSemibold
@@ -470,7 +440,6 @@ function NexusUI:CreateTab(name, iconAsset)
     btnCorner.CornerRadius = UDim.new(0, 6)
     btnCorner.Parent = tabBtn
 
-    -- Indicador Lateral Rosa Ativo (Barra Vertical)
     local activeIndicator = Instance.new("Frame")
     activeIndicator.Name = "Indicator"
     activeIndicator.Size = UDim2.new(0, 3, 0, 0)
@@ -481,19 +450,20 @@ function NexusUI:CreateTab(name, iconAsset)
     activeIndicator.Visible = false
     activeIndicator.Parent = tabBtn
 
-    -- Página de Conteúdo da Aba
     local tabPage = Instance.new("Frame")
     tabPage.Name = "Page_" .. name
     tabPage.Size = UDim2.new(1, 0, 1, 0)
     tabPage.BackgroundTransparency = 1
+    tabPage.BorderSizePixel = 0
     tabPage.Visible = false
     tabPage.Parent = hub.ContentContainer
 
-    -- Header de Sub-Abas
     local subTabHeader = Instance.new("Frame")
     subTabHeader.Name = "SubTabHeader"
     subTabHeader.Size = UDim2.new(1, 0, 0, 30)
     subTabHeader.BackgroundTransparency = 1
+    subTabHeader.BorderSizePixel = 0
+    subTabHeader.Visible = false
     subTabHeader.Parent = tabPage
 
     local subTabLayout = Instance.new("UIListLayout")
@@ -501,12 +471,12 @@ function NexusUI:CreateTab(name, iconAsset)
     subTabLayout.Padding = UDim.new(0, 8)
     subTabLayout.Parent = subTabHeader
 
-    -- Container do Conteúdo das Sub-Abas
     local subTabContainer = Instance.new("Frame")
     subTabContainer.Name = "SubTabContainer"
-    subTabContainer.Size = UDim2.new(1, 0, 1, -38)
-    subTabContainer.Position = UDim2.new(0, 0, 0, 38)
+    subTabContainer.Size = UDim2.new(1, 0, 1, 0)
+    subTabContainer.Position = UDim2.new(0, 0, 0, 0)
     subTabContainer.BackgroundTransparency = 1
+    subTabContainer.BorderSizePixel = 0
     subTabContainer.Parent = tabPage
 
     local tabObj = {
@@ -514,6 +484,8 @@ function NexusUI:CreateTab(name, iconAsset)
         button = tabBtn,
         page = tabPage,
         indicator = activeIndicator,
+        subTabHeader = subTabHeader,
+        subTabContainer = subTabContainer,
         subTabs = {},
         activeSubTab = nil
     }
@@ -522,20 +494,15 @@ function NexusUI:CreateTab(name, iconAsset)
         for _, t in pairs(hub.tabs) do
             t.page.Visible = false
             t.indicator.Visible = false
-            PlayTween(t.indicator, TweenInfo.new(0.2), { Size = UDim2.new(0, 3, 0, 0) })
-            PlayTween(t.button, TweenInfo.new(0.2), {
-                BackgroundTransparency = 1,
-                TextColor3 = ToColor3(hub.theme.TextDim)
-            })
+            t.button.BackgroundColor3 = Color3.fromRGB(13, 13, 18)
+            t.button.TextColor3 = ToColor3(hub.theme.TextDim)
+            t.indicator.Size = UDim2.new(0, 3, 0, 0)
         end
         tabPage.Visible = true
         activeIndicator.Visible = true
-        PlayTween(activeIndicator, TweenInfo.new(0.25), { Size = UDim2.new(0, 3, 0.7, 0) })
-        PlayTween(tabBtn, TweenInfo.new(0.2), {
-            BackgroundTransparency = 0,
-            BackgroundColor3 = Color3.fromRGB(24, 18, 28),
-            TextColor3 = ToColor3(hub.theme.Accent)
-        })
+        PlayTween(activeIndicator, TweenInfo.new(0.2), { Size = UDim2.new(0, 3, 0.65, 0) })
+        tabBtn.BackgroundColor3 = Color3.fromRGB(24, 16, 26)
+        tabBtn.TextColor3 = ToColor3(hub.theme.Accent)
         hub.activeTab = tabObj
     end
 
@@ -546,11 +513,16 @@ function NexusUI:CreateTab(name, iconAsset)
         ActivateThisTab()
     end
 
-    -- Criação de Sub-Abas (Pills Superiores)
     function tabObj:CreateSubTab(subName)
+        subTabHeader.Visible = true
+        subTabContainer.Position = UDim2.new(0, 0, 0, 36)
+        subTabContainer.Size = UDim2.new(1, 0, 1, -36)
+
         local subBtn = Instance.new("TextButton")
         subBtn.Name = "SubBtn_" .. subName
-        subBtn.Size = UDim2.new(0, 100, 1, 0)
+        subBtn.AutoButtonColor = false
+        subBtn.BorderSizePixel = 0
+        subBtn.Size = UDim2.new(0, 105, 1, 0)
         subBtn.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
         subBtn.Text = subName
         subBtn.TextColor3 = ToColor3(hub.theme.TextDim)
@@ -563,7 +535,7 @@ function NexusUI:CreateTab(name, iconAsset)
         sCorner.Parent = subBtn
 
         local sStroke = Instance.new("UIStroke")
-        sStroke.Color = Color3.fromRGB(35, 30, 42)
+        sStroke.Color = Color3.fromRGB(36, 26, 40)
         sStroke.Thickness = 1
         sStroke.Parent = subBtn
 
@@ -571,8 +543,12 @@ function NexusUI:CreateTab(name, iconAsset)
         subPage.Name = "SubPage_" .. subName
         subPage.Size = UDim2.new(1, 0, 1, 0)
         subPage.BackgroundTransparency = 1
+        subPage.BorderSizePixel = 0
         subPage.ScrollBarThickness = 2
         subPage.ScrollBarImageColor3 = ToColor3(hub.theme.Accent)
+        subPage.BottomImage = ""
+        subPage.MidImage = ""
+        subPage.TopImage = ""
         subPage.Visible = false
         subPage.Parent = subTabContainer
 
@@ -587,11 +563,11 @@ function NexusUI:CreateTab(name, iconAsset)
                 s.page.Visible = false
                 s.button.TextColor3 = ToColor3(hub.theme.TextDim)
                 s.button.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
-                s.stroke.Color = Color3.fromRGB(35, 30, 42)
+                s.stroke.Color = Color3.fromRGB(36, 26, 40)
             end
             subPage.Visible = true
-            subBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            subBtn.BackgroundColor3 = Color3.fromRGB(35, 18, 30)
+            subBtn.TextColor3 = ToColor3(hub.theme.Accent)
+            subBtn.BackgroundColor3 = Color3.fromRGB(32, 16, 28)
             sStroke.Color = ToColor3(hub.theme.Accent)
             tabObj.activeSubTab = subObj
         end
@@ -612,7 +588,11 @@ function NexusUI:CreateTab(name, iconAsset)
 
     function tabObj:CreateSection(secTitle, bannerAsset)
         if #self.subTabs == 0 then
-            self:CreateSubTab("Geral")
+            local defaultSub = self:CreateSubTab("Principal")
+            self.subTabHeader.Visible = false
+            self.subTabContainer.Position = UDim2.new(0, 0, 0, 0)
+            self.subTabContainer.Size = UDim2.new(1, 0, 1, 0)
+            return defaultSub:CreateSection(secTitle, bannerAsset)
         end
         return self.subTabs[1]:CreateSection(secTitle, bannerAsset)
     end
@@ -621,17 +601,16 @@ function NexusUI:CreateTab(name, iconAsset)
 end
 
 -- ----------------------------------------------------------------------------
--- 6. CONSTRUTOR DE SEÇÕES & WIDGETS CYBER-DARK
+-- 6. CONSTRUTOR DE SEÇÕES & WIDGETS
 -- ----------------------------------------------------------------------------
 function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
     local hub = self
-    
-    -- Card da Seção (Preto com Borda Rosa Fina)
+
     local secFrame = Instance.new("Frame")
     secFrame.Name = "Section_" .. title
-    secFrame.Size = UDim2.new(1, -10, 0, 38)
+    secFrame.Size = UDim2.new(1, -8, 0, 36)
     secFrame.AutomaticSize = Enum.AutomaticSize.Y
-    secFrame.BackgroundColor3 = Color3.fromRGB(13, 13, 18)
+    secFrame.BackgroundColor3 = Color3.fromRGB(14, 14, 19)
     secFrame.BorderSizePixel = 0
     secFrame.Parent = parentFrame
 
@@ -640,19 +619,19 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
     secCorner.Parent = secFrame
 
     local secStroke = Instance.new("UIStroke")
-    secStroke.Color = Color3.fromRGB(45, 25, 40)
+    secStroke.Color = Color3.fromRGB(40, 24, 38)
     secStroke.Thickness = 1
     secStroke.Parent = secFrame
 
-    -- Título da Seção com Barra Neon
     local headerBar = Instance.new("Frame")
-    headerBar.Size = UDim2.new(1, 0, 0, 32)
+    headerBar.Size = UDim2.new(1, 0, 0, 30)
     headerBar.BackgroundTransparency = 1
+    headerBar.BorderSizePixel = 0
     headerBar.Parent = secFrame
 
     local accentTag = Instance.new("Frame")
-    accentTag.Size = UDim2.new(0, 3, 0, 14)
-    accentTag.Position = UDim2.new(0, 10, 0.5, -7)
+    accentTag.Size = UDim2.new(0, 3, 0, 12)
+    accentTag.Position = UDim2.new(0, 10, 0.5, -6)
     accentTag.BackgroundColor3 = ToColor3(hub.theme.Accent)
     accentTag.BorderSizePixel = 0
     accentTag.Parent = headerBar
@@ -665,19 +644,21 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
     titleLbl.Size = UDim2.new(1, -30, 1, 0)
     titleLbl.Position = UDim2.new(0, 20, 0, 0)
     titleLbl.BackgroundTransparency = 1
+    titleLbl.BorderSizePixel = 0
     titleLbl.Text = string.upper(title)
     titleLbl.Font = Enum.Font.GothamBold
     titleLbl.TextSize = 11
-    titleLbl.TextColor3 = ToColor3(hub.theme.Text)
+    titleLbl.TextColor3 = ToColor3(hub.theme.Accent)
     titleLbl.TextXAlignment = Enum.TextXAlignment.Left
     titleLbl.Parent = headerBar
 
     local widgetList = Instance.new("Frame")
     widgetList.Name = "Widgets"
     widgetList.Size = UDim2.new(1, -20, 0, 0)
-    widgetList.Position = UDim2.new(0, 10, 0, 36)
+    widgetList.Position = UDim2.new(0, 10, 0, 34)
     widgetList.AutomaticSize = Enum.AutomaticSize.Y
     widgetList.BackgroundTransparency = 1
+    widgetList.BorderSizePixel = 0
     widgetList.Parent = secFrame
 
     local wLayout = Instance.new("UIListLayout")
@@ -690,10 +671,12 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
 
     local secApi = {}
 
-    -- [BUTTON WIDGET]
+    -- [BUTTON]
     function secApi:AddButton(btnCfg)
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, 0, 0, 38)
+        btn.AutoButtonColor = false
+        btn.BorderSizePixel = 0
+        btn.Size = UDim2.new(1, 0, 0, 36)
         btn.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
         btn.Text = (btnCfg.canFavorite and "      " or "    ") .. btnCfg.name
         btn.TextColor3 = ToColor3(hub.theme.Text)
@@ -707,7 +690,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         corner.Parent = btn
 
         local stroke = Instance.new("UIStroke")
-        stroke.Color = Color3.fromRGB(35, 30, 45)
+        stroke.Color = Color3.fromRGB(34, 25, 38)
         stroke.Thickness = 1
         stroke.Parent = btn
 
@@ -715,30 +698,32 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
 
         btn.MouseEnter:Connect(function()
             if not comp.IsLocked then
-                PlayTween(btn, TweenInfo.new(0.15), { BackgroundColor3 = Color3.fromRGB(28, 22, 35) })
-                PlayTween(stroke, TweenInfo.new(0.15), { Color = ToColor3(hub.theme.Accent) })
+                btn.BackgroundColor3 = Color3.fromRGB(26, 20, 32)
+                stroke.Color = ToColor3(hub.theme.Accent)
             end
         end)
         btn.MouseLeave:Connect(function()
             if not comp.IsLocked then
-                PlayTween(btn, TweenInfo.new(0.15), { BackgroundColor3 = Color3.fromRGB(18, 18, 25) })
-                PlayTween(stroke, TweenInfo.new(0.15), { Color = Color3.fromRGB(35, 30, 45) })
+                btn.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
+                stroke.Color = Color3.fromRGB(34, 25, 38)
             end
         end)
         btn.MouseButton1Click:Connect(function()
             if comp.IsLocked then return end
-            PlayTween(btn, TweenInfo.new(0.1), { BackgroundColor3 = ToColor3(hub.theme.Accent) })
+            btn.BackgroundColor3 = ToColor3(hub.theme.Accent)
             task.wait(0.08)
-            PlayTween(btn, TweenInfo.new(0.15), { BackgroundColor3 = Color3.fromRGB(28, 22, 35) })
+            btn.BackgroundColor3 = Color3.fromRGB(26, 20, 32)
             if btnCfg.callback then btnCfg.callback(comp) end
         end)
         return comp
     end
 
-    -- [TOGGLE WIDGET]
+    -- [TOGGLE]
     function secApi:AddToggle(tCfg)
         local tBtn = Instance.new("TextButton")
-        tBtn.Size = UDim2.new(1, 0, 0, 38)
+        tBtn.AutoButtonColor = false
+        tBtn.BorderSizePixel = 0
+        tBtn.Size = UDim2.new(1, 0, 0, 36)
         tBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
         tBtn.Text = (tCfg.canFavorite and "      " or "    ") .. tCfg.name
         tBtn.TextColor3 = ToColor3(hub.theme.Text)
@@ -752,15 +737,16 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         corner.Parent = tBtn
 
         local stroke = Instance.new("UIStroke")
-        stroke.Color = Color3.fromRGB(35, 30, 45)
+        stroke.Color = Color3.fromRGB(34, 25, 38)
         stroke.Thickness = 1
         stroke.Parent = tBtn
 
-        -- Trilho do Toggle
+        -- Trilho
         local switch = Instance.new("Frame")
-        switch.Size = UDim2.new(0, 42, 0, 22)
-        switch.Position = UDim2.new(1, -52, 0.5, -11)
-        switch.BackgroundColor3 = tCfg.default and ToColor3(hub.theme.Accent) or Color3.fromRGB(30, 25, 38)
+        switch.BorderSizePixel = 0
+        switch.Size = UDim2.new(0, 40, 0, 20)
+        switch.Position = UDim2.new(1, -50, 0.5, -10)
+        switch.BackgroundColor3 = tCfg.default and ToColor3(hub.theme.Accent) or Color3.fromRGB(28, 20, 32)
         switch.Parent = tBtn
 
         local swCorner = Instance.new("UICorner")
@@ -768,15 +754,16 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         swCorner.Parent = switch
 
         local swStroke = Instance.new("UIStroke")
-        swStroke.Color = tCfg.default and ToColor3(hub.theme.Accent) or Color3.fromRGB(50, 40, 60)
+        swStroke.Color = tCfg.default and ToColor3(hub.theme.Accent) or Color3.fromRGB(48, 30, 52)
         swStroke.Thickness = 1
         swStroke.Parent = switch
 
-        -- Botão deslizante do Toggle
+        -- Círculo Deslizante (Rosa Pastel Suave quando ligado, Grafite quando desligado)
         local dot = Instance.new("Frame")
-        dot.Size = UDim2.new(0, 16, 0, 16)
-        dot.Position = tCfg.default and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
-        dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        dot.BorderSizePixel = 0
+        dot.Size = UDim2.new(0, 14, 0, 14)
+        dot.Position = tCfg.default and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+        dot.BackgroundColor3 = tCfg.default and Color3.fromRGB(255, 235, 245) or Color3.fromRGB(150, 130, 160)
         dot.Parent = switch
 
         local dotCorner = Instance.new("UICorner")
@@ -789,24 +776,26 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         tBtn.MouseButton1Click:Connect(function()
             if comp.IsLocked then return end
             state = not state
-            PlayTween(switch, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {
-                BackgroundColor3 = state and ToColor3(hub.theme.Accent) or Color3.fromRGB(30, 25, 38)
+            PlayTween(switch, TweenInfo.new(0.2), {
+                BackgroundColor3 = state and ToColor3(hub.theme.Accent) or Color3.fromRGB(28, 20, 32)
             })
             PlayTween(swStroke, TweenInfo.new(0.2), {
-                Color = state and ToColor3(hub.theme.Accent) or Color3.fromRGB(50, 40, 60)
+                Color = state and ToColor3(hub.theme.Accent) or Color3.fromRGB(48, 30, 52)
             })
-            PlayTween(dot, TweenInfo.new(0.2, Enum.EasingStyle.Quart), {
-                Position = state and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+            PlayTween(dot, TweenInfo.new(0.2), {
+                Position = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7),
+                BackgroundColor3 = state and Color3.fromRGB(255, 235, 245) or Color3.fromRGB(150, 130, 160)
             })
             if tCfg.callback then tCfg.callback(state) end
         end)
         return comp
     end
 
-    -- [DROPDOWN WIDGET]
+    -- [DROPDOWN]
     function secApi:AddDropdown(ddCfg)
         local dFrame = Instance.new("Frame")
-        dFrame.Size = UDim2.new(1, 0, 0, 38)
+        dFrame.BorderSizePixel = 0
+        dFrame.Size = UDim2.new(1, 0, 0, 36)
         dFrame.AutomaticSize = Enum.AutomaticSize.Y
         dFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
         dFrame.Parent = widgetList
@@ -816,12 +805,14 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         dCorner.Parent = dFrame
 
         local dStroke = Instance.new("UIStroke")
-        dStroke.Color = Color3.fromRGB(35, 30, 45)
+        dStroke.Color = Color3.fromRGB(34, 25, 38)
         dStroke.Thickness = 1
         dStroke.Parent = dFrame
 
         local headerBtn = Instance.new("TextButton")
-        headerBtn.Size = UDim2.new(1, 0, 0, 38)
+        headerBtn.AutoButtonColor = false
+        headerBtn.BorderSizePixel = 0
+        headerBtn.Size = UDim2.new(1, 0, 0, 36)
         headerBtn.BackgroundTransparency = 1
         headerBtn.Text = "    " .. ddCfg.name .. "  ▾"
         headerBtn.TextColor3 = ToColor3(hub.theme.Text)
@@ -831,8 +822,9 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         headerBtn.Parent = dFrame
 
         local optList = Instance.new("Frame")
+        optList.BorderSizePixel = 0
         optList.Size = UDim2.new(1, 0, 0, 0)
-        optList.Position = UDim2.new(0, 0, 0, 40)
+        optList.Position = UDim2.new(0, 0, 0, 38)
         optList.AutomaticSize = Enum.AutomaticSize.Y
         optList.BackgroundTransparency = 1
         optList.Visible = false
@@ -851,12 +843,14 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
             isOpen = not isOpen
             optList.Visible = isOpen
             headerBtn.Text = "    " .. ddCfg.name .. (isOpen and "  ▴" or "  ▾")
-            PlayTween(dStroke, TweenInfo.new(0.2), { Color = isOpen and ToColor3(hub.theme.Accent) or Color3.fromRGB(35, 30, 45) })
+            dStroke.Color = isOpen and ToColor3(hub.theme.Accent) or Color3.fromRGB(34, 25, 38)
         end)
 
         for _, opt in ipairs(ddCfg.options or {}) do
             local optBtn = Instance.new("TextButton")
-            optBtn.Size = UDim2.new(1, -16, 0, 30)
+            optBtn.AutoButtonColor = false
+            optBtn.BorderSizePixel = 0
+            optBtn.Size = UDim2.new(1, -16, 0, 28)
             optBtn.Position = UDim2.new(0, 8, 0, 0)
             optBtn.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
             optBtn.Text = "     " .. opt
@@ -871,7 +865,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
             oCorner.Parent = optBtn
 
             local oStroke = Instance.new("UIStroke")
-            oStroke.Color = Color3.fromRGB(28, 24, 34)
+            oStroke.Color = Color3.fromRGB(28, 20, 32)
             oStroke.Thickness = 1
             oStroke.Parent = optBtn
 
@@ -879,14 +873,14 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
                 if ddCfg.multiSelect then
                     selected[opt] = not selected[opt]
                     optBtn.TextColor3 = selected[opt] and ToColor3(hub.theme.Accent) or ToColor3(hub.theme.TextDim)
-                    oStroke.Color = selected[opt] and ToColor3(hub.theme.Accent) or Color3.fromRGB(28, 24, 34)
+                    oStroke.Color = selected[opt] and ToColor3(hub.theme.Accent) or Color3.fromRGB(28, 20, 32)
                     if ddCfg.callback then ddCfg.callback(selected) end
                 else
                     selected = opt
                     isOpen = false
                     optList.Visible = false
                     headerBtn.Text = "    " .. ddCfg.name .. "  [" .. opt .. "]  ▾"
-                    PlayTween(dStroke, TweenInfo.new(0.2), { Color = Color3.fromRGB(35, 30, 45) })
+                    dStroke.Color = Color3.fromRGB(34, 25, 38)
                     if ddCfg.callback then ddCfg.callback(selected) end
                 end
             end)
@@ -894,10 +888,12 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         return comp
     end
 
-    -- [KEYBIND WIDGET]
+    -- [KEYBIND]
     function secApi:AddKeybind(kbCfg)
         local kBtn = Instance.new("TextButton")
-        kBtn.Size = UDim2.new(1, 0, 0, 38)
+        kBtn.AutoButtonColor = false
+        kBtn.BorderSizePixel = 0
+        kBtn.Size = UDim2.new(1, 0, 0, 36)
         kBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
         kBtn.Text = "    " .. kbCfg.name
         kBtn.TextColor3 = ToColor3(hub.theme.Text)
@@ -911,15 +907,16 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
         corner.Parent = kBtn
 
         local stroke = Instance.new("UIStroke")
-        stroke.Color = Color3.fromRGB(35, 30, 45)
+        stroke.Color = Color3.fromRGB(34, 25, 38)
         stroke.Thickness = 1
         stroke.Parent = kBtn
 
-        -- Indicador estilo Tecla Mecânica Iluminada
+        -- Caixa da Tecla
         local keyBox = Instance.new("TextLabel")
-        keyBox.Size = UDim2.new(0, 65, 0, 24)
-        keyBox.Position = UDim2.new(1, -75, 0.5, -12)
-        keyBox.BackgroundColor3 = Color3.fromRGB(28, 18, 30)
+        keyBox.BorderSizePixel = 0
+        keyBox.Size = UDim2.new(0, 60, 0, 22)
+        keyBox.Position = UDim2.new(1, -70, 0.5, -11)
+        keyBox.BackgroundColor3 = Color3.fromRGB(24, 16, 28)
         keyBox.Text = kbCfg.default or "None"
         keyBox.TextColor3 = ToColor3(hub.theme.Accent)
         keyBox.Font = Enum.Font.GothamBold
@@ -942,7 +939,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
             if comp.IsLocked then return end
             listening = true
             keyBox.Text = "..."
-            PlayTween(kStroke, TweenInfo.new(0.2), { Color = Color3.fromRGB(255, 255, 255) })
+            kStroke.Color = Color3.fromRGB(255, 100, 180)
 
             local conn
             conn = UserInputService.InputBegan:Connect(function(inp)
@@ -950,7 +947,7 @@ function NexusUI:_BuildSection(parentFrame, title, bannerAsset)
                     conn:Disconnect()
                     listening = false
                     keyBox.Text = inp.KeyCode.Name
-                    PlayTween(kStroke, TweenInfo.new(0.2), { Color = ToColor3(hub.theme.Accent) })
+                    kStroke.Color = ToColor3(hub.theme.Accent)
                     if kbCfg.callback then kbCfg.callback(inp.KeyCode.Name) end
                 end
             end)
@@ -988,5 +985,4 @@ function NexusUI:_InitNativeTabs()
     })
 end
 
--- Retorno fundamental para suporte a loadstring()
 return NexusUI
